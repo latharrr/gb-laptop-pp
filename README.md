@@ -151,8 +151,17 @@ sheet does not break this, since lookup is by value not position.
 ### Sheet tabs
 
 `Read me first` (plain English guide for non technical users), `Responses`,
-`Taps`, `Events`, `Funnel`. The Funnel tab is live formulas over Events, so it
-recalculates on its own.
+`Taps`, `Events`, `Funnel`. The Funnel tab is entirely live formulas, so it
+recalculates on its own: the overall eight step funnel in `A1:D9`, the same
+funnel split per campaign link in `A11:L27`, and demand queries at `N1` and
+`Q1`. The link column is a spilling `UNIQUE` over `Events`, so a new tag appears
+by itself the first time somebody uses it; the other columns are written down
+`MAX_SOURCES` rows and guarded with `IF($A13="","",...)` so unused rows stay
+blank.
+
+Step counts are `COUNTA(UNIQUE(FILTER(...)))` rather than `COUNTIF`, because
+pressing back re enters a screen and fires `step_viewed` again. Counting rows
+instead of distinct sessions would inflate every number.
 
 `setupSheets()` creates every tab immediately. `rebuildFunnel()` and
 `rebuildReadme()` recreate those two if their layout changes.

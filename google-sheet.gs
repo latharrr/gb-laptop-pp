@@ -35,6 +35,11 @@ var FUNNEL_SHEET_NAME = 'Funnel';
 var README_SHEET_NAME = 'Read me first';
 var SHARED_SECRET = '';
 
+// Used to build the shareable address for each campaign link on the Funnel tab.
+var SITE_URL = 'https://laptop.picapool.tech';
+// How many campaign links the Funnel tab leaves room for.
+var MAX_SOURCES = 15;
+
 // Run this once from the editor to create every tab straight away, instead of
 // waiting for the first person to use the form. Select setupSheets from the
 // function dropdown at the top, then press Run.
@@ -198,44 +203,95 @@ function rebuildFunnel() {
 
 function buildFunnelSheet(sheet) {
   var E = "'" + EVENTS_SHEET_NAME + "'!";
-  sheet.getRange('A1:D1').setValues([['Step', 'People', 'Share of openers', 'Lost here']]).setFontWeight('bold');
+  var T = "'" + TAPS_SHEET_NAME + "'!";
+  var n = FUNNEL_STEPS.length;
 
-  for (var i = 0; i < FUNNEL_STEPS.length; i++) {
+  // Distinct sessions that reached a screen at least once. Distinct matters,
+  // because pressing back re enters a screen and would otherwise count twice.
+  function reached(screen, sourceCell) {
+    return 'IFERROR(COUNTA(UNIQUE(FILTER(' + E + '$B$2:$B,' +
+      (sourceCell ? E + '$C$2:$C=' + sourceCell + ',' : '') +
+      E + '$D$2:$D="step_viewed",' + E + '$E$2:$E="' + screen + '"))),0)';
+  }
+
+  // ---- everyone, whichever link they came from ----
+  sheet.getRange('A1:D1').setValues([['Step', 'People', 'Share of openers', 'Lost here']]).setFontWeight('bold');
+  for (var i = 0; i < n; i++) {
     var row = i + 2;
-    // Distinct sessions that reached this screen at least once.
     sheet.getRange(row, 1).setValue(FUNNEL_STEPS[i].label);
-    sheet.getRange(row, 2).setFormula(
-      '=IFERROR(COUNTA(UNIQUE(FILTER(' + E + '$B$2:$B,' + E + '$D$2:$D="step_viewed",' +
-      E + '$E$2:$E="' + FUNNEL_STEPS[i].screen + '"))),0)'
-    );
+    sheet.getRange(row, 2).setFormula('=' + reached(FUNNEL_STEPS[i].screen, null));
     sheet.getRange(row, 3).setFormula('=IFERROR($B' + row + '/$B$2,0)');
     if (i > 0) sheet.getRange(row, 4).setFormula('=IFERROR($B' + (row - 1) + '-$B' + row + ',0)');
   }
-  sheet.getRange(2, 3, FUNNEL_STEPS.length, 1).setNumberFormat('0%');
+  sheet.getRange(2, 3, n, 1).setNumberFormat('0%');
 
-  // Demand, which is the number that matters when negotiating. Counted once per
-  // session per laptop, so a person toggling a card on and off counts once.
-  sheet.getRange('F1').setFormula(
+  // ---- the same funnel, split by the link people arrived on ----
+  var title = n + 3;                 // one blank row under the block above
+  var head = title + 1;
+  var first = head + 1;              // first row of link data
+  sheet.getRange(title, 1)
+    .setValue('Every link, and how far the people who used it got')
+    .setFontWeight('bold').setFontSize(12).setFontColor('#F03506');
+
+  var header = ['Link', 'Share this address', 'Taps']
+    .concat(FUNNEL_STEPS.map(function (s) { return s.label; }))
+    .concat(['Joined, out of taps']);
+  sheet.getRange(head, 1, 1, header.length).setValues([header]).setFontWeight('bold');
+
+  // The link names fill themselves in as new tags show up in Events.
+  sheet.getRange(first, 1).setFormula(
+    '=IFERROR(SORT(UNIQUE(FILTER(' + E + '$C$2:$C,' + E + '$C$2:$C<>""))),"")'
+  );
+
+  for (var r = first; r < first + MAX_SOURCES; r++) {
+    var src = '$A' + r;
+    var guard = function (body) { return '=IF(' + src + '="","",' + body + ')'; };
+
+    sheet.getRange(r, 2).setFormula(guard(
+      'IF(' + src + '="direct","' + SITE_URL + '","' + SITE_URL + '/"&' + src + ')'
+    ));
+    sheet.getRange(r, 3).setFormula(guard('COUNTIF(' + T + '$B$2:$B,' + src + ')'));
+    for (var s = 0; s < n; s++) {
+      sheet.getRange(r, 4 + s).setFormula(guard(reached(FUNNEL_STEPS[s].screen, src)));
+    }
+    // Joined divided by taps, the number that says whether a link is working.
+    sheet.getRange(r, 4 + n).setFormula(guard('IFERROR($' + colLetter(3 + n) + r + '/$C' + r + ',0)'));
+  }
+  sheet.getRange(first, 4 + n, MAX_SOURCES, 1).setNumberFormat('0%');
+
+  // ---- demand, which is what matters when negotiating ----
+  // Counted once per session per laptop, so somebody toggling a card on and off
+  // does not count twice.
+  sheet.getRange('N1').setFormula(
     '=IFERROR(QUERY(' + E + '$D$2:$E,"select Col2, count(Col1) where Col1 = ' + "'laptop_interest'" +
     ' group by Col2 order by count(Col1) desc label Col2 ' + "'Laptop shortlisted'" +
     ', count(Col1) ' + "'People'" + '",0),"Nothing yet")'
   );
-  sheet.getRange('I1').setFormula(
+  sheet.getRange('Q1').setFormula(
     '=IFERROR(QUERY(' + E + '$D$2:$E,"select Col2, count(Col1) where Col1 = ' + "'own_model'" +
     ' group by Col2 order by count(Col1) desc label Col2 ' + "'Asked for by name'" +
     ', count(Col1) ' + "'People'" + '",0),"Nothing yet")'
   );
-  sheet.getRange('L1').setFormula(
-    '=IFERROR(QUERY(' + E + '$C$2:$D,"select Col1, count(Col2) where Col2 = ' + "'step_viewed'" +
-    ' group by Col1 order by count(Col2) desc label Col1 ' + "'Link'" +
-    ', count(Col2) ' + "'Steps taken'" + '",0),"Nothing yet")'
-  );
 
-  sheet.getRange('A12').setValue('Everything here recalculates on its own as the Events sheet fills up.');
-  sheet.getRange('A13').setValue('Run rebuildFunnel from the Apps Script editor to recreate this sheet.');
-  sheet.getRange('A12:A13').setFontColor('#888888');
-  sheet.setColumnWidth(1, 170);
+  var note = first + MAX_SOURCES + 1;
+  sheet.getRange(note, 1).setValue('Everything here recalculates on its own as people use the form. Nothing to press.');
+  sheet.getRange(note + 1, 1).setValue('Room for ' + MAX_SOURCES + ' links. If you share more than that, run rebuildFunnel from the Apps Script editor after raising MAX_SOURCES.');
+  sheet.getRange(note, 1, 2, 1).setFontColor('#888888');
+
+  sheet.setColumnWidth(1, 130);
+  sheet.setColumnWidth(2, 250);
   sheet.setFrozenRows(1);
+}
+
+// 1 becomes A, 2 becomes B, and so on. Only ever called with small numbers here.
+function colLetter(n) {
+  var out = '';
+  while (n > 0) {
+    var rem = (n - 1) % 26;
+    out = String.fromCharCode(65 + rem) + out;
+    n = Math.floor((n - 1) / 26);
+  }
+  return out;
 }
 
 // Written for whoever opens this spreadsheet without having built any of it.
@@ -253,7 +309,7 @@ var README_ROWS = [
   ['sub', 'Events'],
   ['body', 'A trail of every screen a person visited and every button they pressed. It is long and it is not meant to be read directly. The Funnel tab turns it into something useful.'],
   ['sub', 'Funnel'],
-  ['body', 'The summary, and the one worth reading. It shows how far people get before giving up, which laptops the most people want, and which shared link is bringing people in. It updates on its own.'],
+  ['body', 'The summary, and the one worth reading. The top block is everybody together: how many got to each step, and how many you lost at each one. Underneath it is the same thing split by link, so you can see that the hostel poster brought forty taps and two sign ups while the WhatsApp message brought twenty taps and eleven. Off to the right are the laptops the most people shortlisted, which is the number you take to a seller. It all updates on its own.'],
   ['blank', ''],
 
   ['head', 'Columns that are not obvious'],
@@ -266,6 +322,7 @@ var README_ROWS = [
 
   ['head', 'Making a new link for a poster or a group'],
   ['body', 'Pick any single word and put it after the address. Share laptop.picapool.tech/hostel and every response from that link is tagged hostel, so you can tell which posters and which groups actually worked. Nothing needs setting up first. The word just has to be one word with no spaces.'],
+  ['body', 'The link appears on the Funnel tab on its own, the first time somebody uses it, with its taps and its own funnel next to it. The Share this address column there gives you the full address to copy. There is room for fifteen links.'],
   ['blank', ''],
 
   ['head', 'Safe to do'],

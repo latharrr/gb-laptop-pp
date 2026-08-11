@@ -107,6 +107,8 @@ const post = (ctx, obj) => JSON.parse(ctx.doPost({ postData: { contents: JSON.st
 const rowsOf = (ss, name) => (ss.getSheetByName(name) || { __grid: [] }).__grid;
 // The script runs in its own vm realm, so its Dates fail `instanceof Date` here.
 const isDate = v => Object.prototype.toString.call(v) === '[object Date]';
+const FUNNEL_STEPS_LABELS = ['Opened the link', 'Chose a use', 'Chose a budget', 'Saw the picks',
+  'Chose a week', 'Chose readiness', 'Reached contact', 'Joined the pool'];
 
 console.log('\nApps Script behaviour\n');
 {
@@ -161,13 +163,46 @@ console.log('\nApps Script behaviour\n');
   check('share formula divides by openers', String(fg[2][2]).indexOf('$B$2') !== -1, fg[2][2]);
   check('lost-here formula subtracts previous step', String(fg[2][3]) === '=IFERROR($B2-$B3,0)', fg[2][3]);
   check('no lost-here on the first step', fg[1][3] === undefined || fg[1][3] === '');
-  check('laptop demand query present', String(fg[0][5]).indexOf('laptop_interest') !== -1);
-  check('own model query present', String(fg[0][8]).indexOf('own_model') !== -1);
-  check('per link query present', String(fg[0][11]).indexOf('step_viewed') !== -1);
+  check('laptop demand query present', String(fg[0][13]).indexOf('laptop_interest') !== -1, fg[0][13]);
+  check('own model query present', String(fg[0][16]).indexOf('own_model') !== -1, fg[0][16]);
+
+  // --- per link funnel block ---
+  // 8 steps -> title on row 11, header row 12, link rows start at 13.
+  const HEAD = 11, FIRST = 12;   // zero indexed
+  check('per link section has a heading', /Every link/.test(String(fg[HEAD - 1][0])), fg[HEAD - 1][0]);
+  const hdr = fg[HEAD].map(String);
+  check('per link header starts Link, Share this address, Taps',
+    hdr[0] === 'Link' && hdr[1] === 'Share this address' && hdr[2] === 'Taps', hdr.slice(0, 3));
+  check('per link header lists all 8 steps',
+    hdr.slice(3, 11).join('|') === FUNNEL_STEPS_LABELS.join('|'), hdr.slice(3, 11));
+  check('per link header ends with the conversion column', hdr[11] === 'Joined, out of taps', hdr[11]);
+
+  const linkRow = fg[FIRST].map(String);
+  check('link names come from a live unique list of sources',
+    /UNIQUE\(FILTER\('Events'!\$C\$2:\$C/.test(linkRow[0]), linkRow[0]);
+  check('shareable address is built from the site url',
+    linkRow[1].indexOf('https://laptop.picapool.tech/"&$A13') !== -1, linkRow[1]);
+  check('direct link falls back to the bare address',
+    /IF\(\$A13="direct","https:\/\/laptop\.picapool\.tech"/.test(linkRow[1]), linkRow[1]);
+  check('taps column counts the Taps sheet, not Events',
+    /COUNTIF\('Taps'!\$B\$2:\$B,\$A13\)/.test(linkRow[2]), linkRow[2]);
+  check('per link step counts filter by that link',
+    /FILTER\('Events'!\$B\$2:\$B,'Events'!\$C\$2:\$C=\$A13/.test(linkRow[3]), linkRow[3]);
+  check('per link step counts are distinct sessions', /COUNTA\(UNIQUE\(FILTER/.test(linkRow[3]));
+  check('last step column targets the done screen', /\$E\$2:\$E="done"/.test(linkRow[10]), linkRow[10]);
+  check('conversion divides joined by taps', /\$K13\/\$C13/.test(linkRow[11]), linkRow[11]);
+  check('every link cell is guarded against empty rows',
+    linkRow.slice(1, 12).every(f => f.indexOf('=IF($A13="","",') === 0), linkRow.slice(1, 12).map(f => f.slice(0, 16)));
+  check('there is room for 15 links', fg[FIRST + 14] && String(fg[FIRST + 14][2]).indexOf('$A27') !== -1, fg[FIRST + 14] && fg[FIRST + 14][2]);
+  check('the per link block does not collide with the demand queries',
+    fg[HEAD].length <= 13 && !fg[FIRST].slice(13).some(Boolean));
 
   const balanced = s => (String(s).match(/"/g) || []).length % 2 === 0 && (String(s).match(/\(/g) || []).length === (String(s).match(/\)/g) || []).length;
-  check('all funnel formulas have balanced quotes and brackets',
-    [fg[1][1], fg[2][2], fg[2][3], fg[0][5], fg[0][8], fg[0][11]].every(balanced));
+  const everyFormula = [];
+  fg.forEach(row => (row || []).forEach(cell => { if (typeof cell === 'string' && cell.charAt(0) === '=') everyFormula.push(cell); }));
+  check('every formula on the sheet has balanced quotes and brackets',
+    everyFormula.every(balanced), everyFormula.filter(f => !balanced(f)).slice(0, 2));
+  check('the sheet is mostly formulas, not hardcoded numbers', everyFormula.length > 150, everyFormula.length);
 
   const rg = rowsOf(ss, 'Read me first');
   check('read me has content', rg.length > 25, rg.length);
