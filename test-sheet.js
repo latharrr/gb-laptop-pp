@@ -205,13 +205,50 @@ console.log('\nApps Script behaviour\n');
   check('the sheet is mostly formulas, not hardcoded numbers', everyFormula.length > 150, everyFormula.length);
 
   const rg = rowsOf(ss, 'Read me first');
-  check('read me has content', rg.length > 25, rg.length);
+  const text = rg.map(r => String(r[0])).join('\n');
+  const has = s => text.indexOf(s) !== -1;
+
+  check('read me has content', rg.length > 60, rg.length);
   check('read me opens with a title', String(rg[0][0]).indexOf('how this sheet works') !== -1, rg[0][0]);
-  check('read me explains every tab', ['Responses', 'Taps', 'Events', 'Funnel'].every(t => rg.some(r => String(r[0]) === t)));
-  check('read me warns about privacy', rg.some(r => /phone numbers/i.test(String(r[0]))));
-  const jargon = ['JSON', 'endpoint', 'deploy', 'API', 'payload', 'localStorage', 'sendBeacon'];
+  check('read me names every tab as its own heading',
+    ['Responses', 'Taps', 'Events', 'Funnel', 'Read me first'].every(t => rg.some(r => String(r[0]) === t)));
+  check('read me is numbered into sections',
+    [1, 2, 3, 4, 5, 6, 7, 8, 9].every(n => rg.some(r => String(r[0]).indexOf(n + '. ') === 0)),
+    rg.filter(r => /^\d\. /.test(String(r[0]))).map(r => String(r[0])));
+
+  check('read me walks through what a student does',
+    has('Find my laptop') && has('I am interested') && has('saves itself'));
+  check('read me explains why no prices are shown', /never shows a price/.test(text));
+  check('read me documents all three runnable functions',
+    ['setupSheets', 'rebuildFunnel', 'rebuildReadme'].every(f => rg.some(r => String(r[0]) === f)));
+  check('read me says how to reach those functions',
+    has('Extensions') && has('Apps Script') && has('press Run'));
+  check('read me warns that editing the script is not enough on its own',
+    /editing the script alone changes nothing/i.test(text));
+
+  const COLS = ['Submitted at', 'Updated at', 'Lead ID', 'Shortlisted laptops', 'Own model or brand',
+    'Buying window', 'Readiness', 'Pool price total', 'List price total', 'Been here before', 'Came from'];
+  check('read me explains every non obvious column', COLS.every(has), COLS.filter(c => !has(c)));
+
+  const EVENTS = ['step_viewed', 'chose_use', 'chose_budget', 'chose_week', 'chose_readiness',
+    'laptop_interest', 'own_model', 'stretched_budget', 'skipped_picks', 'started_contact',
+    'joined_pool', 'restarted'];
+  check('read me lists every event name the form can send', EVENTS.every(has), EVENTS.filter(e => !has(e)));
+
+  check('read me explains both funnel blocks and the demand lists',
+    /Share of openers/.test(text) && /Lost here/.test(text) && /split by link/.test(text) && /take to a seller/.test(text));
+  check('read me covers campaign links', has('laptop.picapool.tech/hostel') && has('tagged direct'));
+  check('read me has a troubleshooting section', /showing zeroes/.test(text) && /went missing/.test(text));
+  check('read me warns about privacy', /phone numbers/i.test(text));
+  check('read me says which tabs are safe to share', /safe to share/.test(text));
+  check('read me points at the code', has('github.com/latharrr/gb-laptop-pp'));
+
+  // "Deploy" is allowed, it is a button label and the text says where to find it.
+  const jargon = ['JSON', 'endpoint', 'API', 'payload', 'localStorage', 'sendBeacon', 'callback', 'webhook', 'idempotent'];
   const hits = rg.filter(r => jargon.some(j => new RegExp('\\b' + j + '\\b').test(String(r[0])))).map(r => String(r[0]).slice(0, 60));
   check('read me stays free of developer jargon', hits.length === 0, hits);
+  const longest = rg.reduce((a, r) => Math.max(a, String(r[0]).length), 0);
+  check('no paragraph is an unreadable wall of text', longest < 700, longest);
 
   // --- doGet ---
   check('doGet names every tab', ['Read me first', 'Responses', 'Taps', 'Events', 'Funnel'].every(n => ctx.doGet().__text.indexOf(n) !== -1), ctx.doGet().__text);
@@ -226,6 +263,37 @@ console.log('\nApps Script behaviour\n');
   const { ctx } = load('hunter2');
   check('wrong secret rejected', post(ctx, { leadId: 'X', secret: 'nope' }).error === 'bad secret');
   check('right secret accepted', post(ctx, { leadId: 'X', secret: 'hunter2' }).ok === true);
+}
+
+// The sheet and the form are edited separately and drift silently, so tie them
+// together here: anything app.js can send has to be understood by the script.
+{
+  const app = fs.readFileSync('app.js', 'utf8');
+  const gs = fs.readFileSync('google-sheet.gs', 'utf8');
+
+  const fired = new Set();
+  [...app.matchAll(/track\('([a-z_]+)'/g)].forEach(m => fired.add(m[1]));
+  [...app.matchAll(/trackOnce\([^,]+,\s*'([a-z_]+)'/g)].forEach(m => fired.add(m[1]));
+  const readme = gs.slice(gs.indexOf('var README_ROWS'), gs.indexOf('function ensureReadmeSheet'));
+  check('every event the form fires is explained in the read me',
+    [...fired].every(e => readme.indexOf(e) !== -1), [...fired].filter(e => readme.indexOf(e) === -1));
+
+  const screens = [...gs.matchAll(/screen: '([a-z]+)'/g)].map(m => m[1]);
+  const appScreens = (app.match(/var ORDER = \[([^\]]+)\]/) || [])[1].replace(/'/g, '').split(',').map(s => s.trim());
+  check('every funnel step is a screen the form actually has',
+    screens.length === 8 && screens.every(s => appScreens.indexOf(s) !== -1),
+    screens.filter(s => appScreens.indexOf(s) === -1));
+
+  const payloadKeys = [...app.matchAll(/^\s{6}([a-zA-Z]+):/gm)].map(m => m[1]);
+  const sheetKeys = [...gs.matchAll(/\{ key: '([a-zA-Z]+)'/g)].map(m => m[1]);
+  check('every column the sheet writes is a key the form sends',
+    ['leadId', 'name', 'phone', 'purpose', 'budget', 'picks', 'custom', 'week', 'readiness', 'source', 'host']
+      .every(k => sheetKeys.indexOf(k) !== -1 && payloadKeys.indexOf(k) !== -1),
+    { payloadKeys, sheetKeys });
+
+  const site = (gs.match(/var SITE_URL = '([^']+)'/) || [])[1];
+  check('the address on the funnel tab matches the live site',
+    site === 'https://laptop.picapool.tech', site);
 }
 
 console.log('\n' + (failures ? failures + ' FAILED' : 'all checks passed') + '\n');
