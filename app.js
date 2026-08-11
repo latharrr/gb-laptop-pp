@@ -107,12 +107,13 @@
   var initialState = {
     screen: 'landing', purpose: null, budget: null, loading: false, bumped: false,
     cart: {}, week: null, intent: null, fromDone: false,
-    name: '', phone: '', otp: ['', '', '', ''], tried: false,
+    name: '', phone: '', tried: false,
   };
   var state = Object.assign({}, initialState);
   var pendingTimer = null;
-  var pendingFocusId = null;
+  var autoTimer = null;
   var forceCaretEnd = false;
+  var AUTO_JOIN_MS = 2000;
 
   function setState(patch) {
     var next = typeof patch === 'function' ? patch(state) : patch;
@@ -130,7 +131,27 @@
     pendingTimer = setTimeout(function () { setState({ loading: false }); }, 900);
   }
   function restart() {
-    setState(Object.assign({}, initialState, { cart: {}, otp: ['', '', '', ''] }));
+    clearAutoJoin();
+    setState(Object.assign({}, initialState, { cart: {} }));
+  }
+
+  // ---------- auto capture ----------
+  // Contact details save themselves once both fields are valid, so nobody has to
+  // hunt for a button. Every keystroke pushes the deadline back.
+  function contactReady(st) {
+    return st.name.trim().length > 0 && /^\d{10}$/.test(st.phone);
+  }
+  function clearAutoJoin() {
+    clearTimeout(autoTimer);
+    autoTimer = null;
+  }
+  function scheduleAutoJoin() {
+    clearAutoJoin();
+    if (!contactReady(state)) return;
+    autoTimer = setTimeout(function () {
+      autoTimer = null;
+      if (state.screen === 'contact' && contactReady(state)) go('done');
+    }, AUTO_JOIN_MS);
   }
 
   // ---------- icons ----------
@@ -181,6 +202,9 @@
   }
   function checkCircleIcon() {
     return '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5.4" fill="#34C759"></circle><path d="M 3.4 6.2 L 5.2 8 L 8.6 4.4" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+  }
+  function dotsMarkup() {
+    return '<span class="auto-dots"><i></i><i></i><i></i></span>';
   }
   function plusIcon() {
     return '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2.5 L7 11.5 M2.5 7 L11.5 7" stroke="#F03506" stroke-width="2" stroke-linecap="round"></path></svg>';
@@ -395,11 +419,7 @@
     var phoneOk = /^\d{10}$/.test(state.phone);
     var nameErr = state.tried && !nameOk;
     var phoneErr = state.tried && !phoneOk;
-    var otpDone = state.otp.every(function (v) { return v !== ''; });
-
-    var otpBoxes = state.otp.map(function (v, i) {
-      return '<input type="tel" inputmode="numeric" maxlength="1" class="otp-input' + (v ? ' is-filled' : '') + '" id="field-otp-' + i + '" data-i="' + i + '" data-field="otp" value="' + escAttr(v) + '">';
-    }).join('');
+    var autoOn = nameOk && phoneOk;
 
     return '' +
       '<div class="screen screen-fixed">' +
@@ -423,17 +443,16 @@
               (phoneErr ? '<span class="field-error">Enter the 10 digit number after +91</span>' : '') +
               (phoneOk ? '<span class="field-ok">' + checkCircleIcon() + 'Looks good</span>' : '') +
             '</div>' +
-            (phoneOk ? ('' +
-              '<div class="otp-box">' +
-                '<span class="otp-title">Verify now, or later. Your call.</span>' +
-                '<span class="otp-note">Code sent to +91 ' + escAttr(state.phone) + '. You can skip this and verify when your pool fills.</span>' +
-                '<div class="otp-inputs">' + otpBoxes + '</div>' +
-                (otpDone ? '<span class="otp-verified">' + checkCircleIcon() + 'Number verified</span>' : '') +
+            (autoOn ? ('' +
+              '<div class="auto-box">' +
+                '<span class="auto-title">Saving your number' + dotsMarkup() + '</span>' +
+                '<span class="auto-note">Nothing else to do. Keep typing if you need to fix it.</span>' +
+                '<div class="auto-track"><div class="auto-fill"></div></div>' +
               '</div>') : '') +
           '</div>' +
         '</div>' +
         '<div class="contact-footer">' +
-          '<button class="btn-primary" data-action="join-pool">Join the pool</button>' +
+          '<button class="btn-primary" data-action="join-pool">' + (autoOn ? 'Join now' : 'Join the pool') + '</button>' +
           '<p class="contact-footnote">Pool updates only. No spam, no sales calls, and we never share your number.</p>' +
         '</div>' +
       '</div>';
@@ -519,9 +538,8 @@
       focusId = active.id;
       if (typeof active.selectionStart === 'number') { selStart = active.selectionStart; selEnd = active.selectionEnd; }
     }
-    var restoreId = pendingFocusId || focusId;
+    var restoreId = focusId;
     var caretEnd = forceCaretEnd;
-    pendingFocusId = null;
     forceCaretEnd = false;
 
     phoneEl.innerHTML = headerMarkup() + screenMarkup();
@@ -548,6 +566,7 @@
     var action = btn.dataset.action;
     switch (action) {
       case 'go-back': {
+        clearAutoJoin();
         var i = ORDER.indexOf(state.screen);
         go(ORDER[Math.max(0, i - 1)]);
         break;
@@ -598,9 +617,8 @@
         go('contact', 240);
         break;
       case 'join-pool': {
-        var nameOk = state.name.trim().length > 0;
-        var phoneOk = /^\d{10}$/.test(state.phone);
-        if (nameOk && phoneOk) go('done'); else setState({ tried: true });
+        clearAutoJoin();
+        if (contactReady(state)) go('done'); else setState({ tried: true });
         break;
       }
       case 'edit-picks':
@@ -624,30 +642,15 @@
     } else if (field === 'phone') {
       var digits = e.target.value.replace(/\D/g, '').slice(0, 10);
       forceCaretEnd = true;
-      setState({ phone: digits });
-    } else if (field === 'otp') {
-      var i = +e.target.dataset.i;
-      var v = e.target.value.replace(/\D/g, '').slice(-1);
-      var otp = state.otp.slice();
-      otp[i] = v;
-      if (v && i < 3) pendingFocusId = 'field-otp-' + (i + 1);
-      setState({ otp: otp });
+      // A complete number with no name would otherwise sit there waiting forever.
+      if (digits.length === 10 && !state.name.trim()) setState({ phone: digits, tried: true });
+      else setState({ phone: digits });
     }
-  }
-
-  function onKeydown(e) {
-    if (e.target && e.target.dataset && e.target.dataset.field === 'otp' && e.key === 'Backspace' && !e.target.value) {
-      var i = +e.target.dataset.i;
-      if (i > 0) {
-        var prev = document.getElementById('field-otp-' + (i - 1));
-        if (prev) prev.focus();
-      }
-    }
+    scheduleAutoJoin();
   }
 
   phoneEl.addEventListener('click', onClick);
   phoneEl.addEventListener('input', onInput);
-  phoneEl.addEventListener('keydown', onKeydown);
 
   render();
 })();
