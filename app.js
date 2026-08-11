@@ -61,12 +61,12 @@
 
   var CATALOG = {
     game: [
-      { id: 'g1', src: 'guide', brand: 'Lenovo', model: 'LOQ', c: ['RTX 3050 6GB', 'Ryzen 5 7235HS', '144Hz 100% sRGB'], why: 'The batch favourite. Only bright, colour true screen under ₹60k.', price: 57999, lid: K },
+      { id: 'g1', src: 'guide', brand: 'Lenovo', model: 'LOQ', c: ['RTX 3050 6GB', 'Ryzen 5 7235HS', '144Hz 100% sRGB'], why: 'The batch favourite. The one bright, colour true screen in this bracket.', price: 57999, lid: K },
       { id: 'g2', src: 'guide', brand: 'HP', model: 'Victus 15 RTX 2050', c: ['RTX 2050', 'i5-12450H', 'RAM to 64GB'], why: 'Cheapest CUDA card for ML labs. Only if the budget is capped.', price: 53999, lid: G },
       { id: 'g3', src: 'guide', brand: 'HP', model: 'Victus 15 RTX 4050', c: ['RTX 4050', 'i5-13420H', 'DLSS 3.5'], why: 'Cheapest real RTX 4050, but only at sale prices. Set an alert.', price: 64999, lid: G },
       { id: 'g4', src: 'prior', brand: 'ASUS', model: 'TUF Gaming A15', c: ['RTX 3050', 'Ryzen 7 7435HS', '16GB DDR5'], why: 'Valorant past 200 fps, and the RAM opens up later.', price: 64999, lid: K },
       { id: 'g5', src: 'guide', brand: 'MSI', model: 'Thin 15', c: ['RTX 3050', 'i5-13420H', '1.86 kg'], why: 'The one gaming laptop light enough to carry every day.', price: 66999, lid: K },
-      { id: 'g6', src: 'guide', brand: 'Acer', model: 'Nitro V 15', c: ['RTX 4050', 'Ryzen 5 6600H', '165Hz 300 nits'], why: 'Highest fps and the best screen under ₹80k.', price: 73999, lid: G },
+      { id: 'g6', src: 'guide', brand: 'Acer', model: 'Nitro V 15', c: ['RTX 4050', 'Ryzen 5 6600H', '165Hz 300 nits'], why: 'Highest fps in its class, and the best screen with it.', price: 73999, lid: G },
       { id: 'g7', src: 'guide', brand: 'Dell', model: 'G15-5530', c: ['RTX 3050 6GB', 'i5-13450HX', '1TB SSD'], why: 'Worth it only if you need 1TB of storage on day one.', price: 74999, lid: K },
       { id: 'g8', src: 'guide', brand: 'ASUS', model: 'Gaming V16', c: ['RTX 3050 6GB', 'Core 5 210H', '16in 16:10'], why: 'Taller screen for code plus gaming, with Office bundled.', price: 79999, lid: K },
       { id: 'g9', src: 'guide', brand: 'HP', model: 'Victus 15 i7', c: ['RTX 4050', 'i7-13620H', '300 nits'], why: 'The i7 pays off if you compile and stream at the same time.', price: 102999, lid: G },
@@ -77,8 +77,8 @@
     code: [
       { id: 'c1', src: 'guide', brand: 'Lenovo', model: 'IdeaPad Slim 3x', c: ['Snapdragon X', '16GB RAM', 'Dual M.2 slots'], why: 'Two SSD slots and a shell that shrugs off a daily commute.', price: 47999, lid: G },
       { id: 'c2', src: 'guide', brand: 'ASUS', model: 'Vivobook 16', c: ['Snapdragon X', '16GB RAM', '14 hr battery'], why: 'Runs Python, Java and VS Code all day without a charger.', price: 51999, lid: G, img: IMG_VIVO16 },
-      { id: 'c3', src: 'guide', brand: 'Acer', model: 'Aspire Go 14', c: ['Core Ultra 5 125H', '16GB DDR5', '512GB SSD'], why: 'Fastest chip under ₹60k, and the RAM goes to 32GB later.', price: 52999, lid: K },
-      { id: 'c4', src: 'guide', brand: 'Motorola', model: 'Motobook 60', c: ['Core 5 210H', '16GB to 32GB', '2.8K 120Hz OLED'], why: 'Best screen you can code on under ₹60k. Keep the charger close.', price: 59999, lid: G },
+      { id: 'c3', src: 'guide', brand: 'Acer', model: 'Aspire Go 14', c: ['Core Ultra 5 125H', '16GB DDR5', '512GB SSD'], why: 'Fastest chip in this bracket, and the RAM goes to 32GB later.', price: 52999, lid: K },
+      { id: 'c4', src: 'guide', brand: 'Motorola', model: 'Motobook 60', c: ['Core 5 210H', '16GB to 32GB', '2.8K 120Hz OLED'], why: 'The best screen you can code on down here. Keep the charger close.', price: 59999, lid: G },
       { id: 'c5', src: 'guide', brand: 'Apple', model: 'MacBook Neo', c: ['A18 Pro', '8GB unified', '13in Retina'], why: 'Cheapest Mac ever with a college ID. Not for SolidWorks branches.', price: 59999, mrp: 69999, lid: G },
       { id: 'c6', src: 'prior', brand: 'Lenovo', model: 'IdeaPad Slim 5 OLED', c: ['Ryzen 7', '16GB RAM', '2.8K OLED'], why: 'OLED this sharp usually costs ten thousand more.', price: 61999, lid: G },
       { id: 'c7', src: 'guide', brand: 'HP', model: 'Pavilion 16', c: ['Core Ultra 5 125U', '16GB LPDDR5', '16in WUXGA'], why: 'Big screen for split view coding. RAM is soldered though.', price: 64999, lid: G },
@@ -94,7 +94,7 @@
     bal: [
       { id: 'b1', src: 'prior', brand: 'Acer', model: 'Aspire Lite', c: ['Ryzen 5', '16GB RAM', '512GB SSD'], why: 'Everything a fresher needs and nothing extra.', price: 42999, lid: G },
       { id: 'b2', src: 'prior', brand: 'HP', model: '15s', c: ['i5-1335U', '16GB RAM', '512GB SSD'], why: 'Safe pick, serviceable in almost every small town.', price: 45999, lid: K },
-      { id: 'b3', src: 'guide', brand: 'Lenovo', model: 'IdeaPad Slim 3x', c: ['Snapdragon X', '16GB RAM', 'MIL-STD-810H'], why: 'Military grade shell and the only 5MP webcam under ₹60k.', price: 47999, lid: G },
+      { id: 'b3', src: 'guide', brand: 'Lenovo', model: 'IdeaPad Slim 3x', c: ['Snapdragon X', '16GB RAM', 'MIL-STD-810H'], why: 'Military grade shell and the only 5MP webcam in this bracket.', price: 47999, lid: G },
       { id: 'b4', src: 'guide', brand: 'ASUS', model: 'Vivobook 16', c: ['Snapdragon X', '16GB RAM', '14 hr battery'], why: 'A full college day without carrying the charger.', price: 51999, lid: G, img: IMG_VIVO16 },
       { id: 'b5', src: 'guide', brand: 'Acer', model: 'Aspire Go 14', c: ['Core Ultra 5 125H', '16GB DDR5', '1.5 kg'], why: 'The guide top pick. Fast, light and upgradeable.', price: 52999, lid: K },
       { id: 'b6', src: 'guide', brand: 'Apple', model: 'MacBook Neo', c: ['A18 Pro', '8GB unified', '16 hr battery'], why: 'Fanless, silent, and it lasts a full day of classes.', price: 59999, mrp: 69999, lid: G },
@@ -108,7 +108,7 @@
       { id: 'b14', src: 'added', brand: 'Apple', model: 'MacBook Air M5', c: ['M5', '16GB RAM', '512GB SSD'], why: 'The newest Air, with double the storage of the M4 base.', price: 113999, mrp: 119999, lid: K, img: IMG_MBA },
     ],
     des: [
-      { id: 'd1', src: 'guide', brand: 'Lenovo', model: 'LOQ', c: ['RTX 3050 6GB', '100% sRGB', '300 nits'], why: 'The only sub ₹60k machine with colour you can trust.', price: 57999, lid: K },
+      { id: 'd1', src: 'guide', brand: 'Lenovo', model: 'LOQ', c: ['RTX 3050 6GB', '100% sRGB', '300 nits'], why: 'The cheapest machine here with colour you can actually trust.', price: 57999, lid: K },
       { id: 'd2', src: 'guide', brand: 'Motorola', model: 'Motobook 60', c: ['14in 2.8K OLED', '120Hz', '100% DCI-P3'], why: 'A flagship panel at a mid range price. Battery is the trade off.', price: 59999, lid: G },
       { id: 'd3', src: 'prior', brand: 'Lenovo', model: 'IdeaPad Slim 5 OLED', c: ['2.8K OLED', 'Ryzen 7', '16GB RAM'], why: '100% DCI-P3 colour without leaving the budget.', price: 61999, lid: G },
       { id: 'd4', src: 'guide', brand: 'HP', model: 'Victus 15 RTX 4050', c: ['RTX 4050', 'DLSS 3.5', '300 nits'], why: 'Cheapest way to get a card that renders and trains.', price: 64999, lid: G },
@@ -543,10 +543,6 @@
               '<div class="laptop-specs"><span class="spec-pill">' + l.c[0] + '</span><span class="spec-pill">' + l.c[1] + '</span><span class="spec-pill">' + l.c[2] + '</span></div>' +
               '<div class="laptop-why">' + l.why + '</div>' +
               '<div class="laptop-foot">' +
-                '<span class="laptop-price-col">' +
-                  '<span class="laptop-price">' + fmt(l.price) + '</span>' +
-                  (l.mrp && l.mrp > l.price ? '<s class="laptop-mrp">' + fmt(l.mrp) + '</s>' : '') +
-                '</span>' +
                 (on
                   ? '<button class="btn-added" data-action="toggle-cart" data-id="' + l.id + '">' + checkPlainIcon() + 'Interested</button>'
                   : '<button class="btn-add" data-action="toggle-cart" data-id="' + l.id + '">I\'m interested</button>') +
@@ -587,7 +583,7 @@
         '<div class="screen-inner-scroll">' +
           '<div class="page-head">' +
             '<h1 class="page-title">' + title + '</h1>' +
-            (ready ? '<p class="picks-hint">Mark the ones you would actually buy. Pick as many as you like.</p><p class="price-note">Prices checked ' + PRICES_CHECKED + '. They move with every sale.</p>' : '') +
+            (ready ? '<p class="picks-hint">Mark the ones you would actually buy. Pick as many as you like.</p><p class="price-note">We negotiate the price once we know how many of us want the same model.</p>' : '') +
           '</div>' +
           body +
         '</div>' +
@@ -690,8 +686,6 @@
   function doneScreen() {
     var cartItems = cartLaptops();
     var custom = state.custom.trim();
-    // Anchor the saving to whatever number is struck through on the row, so the card reconciles.
-    var savingsN = cartItems.reduce(function (a, l) { return a + ((l.mrp || l.price) - poolPrice(l.price)); }, 0);
     var phoneOk = /^\d{10}$/.test(state.phone);
     var maskedPhone = phoneOk ? '+91 ' + state.phone.slice(0, 2) + '••••••' + state.phone.slice(8) : 'you';
     var waMsg = 'Freshers laptop pool on Picapool. The price drops as more of us join. Join pool ' + POOL_ID;
@@ -703,15 +697,14 @@
         return '' +
           '<div class="cart-summary-row">' +
             laptopThumbSmall(l) +
-            '<div class="cart-summary-body"><div class="cart-summary-name">' + l.brand + ' ' + l.model + '</div><div class="cart-summary-market"><s>' + fmt(l.mrp || l.price) + '</s> ' + (l.mrp ? 'list price' : 'market') + '</div></div>' +
-            '<div class="cart-summary-price"><div class="cart-summary-pool">' + fmt(poolPrice(l.price)) + '</div><div class="cart-summary-pool-label">pool price</div></div>' +
+            '<div class="cart-summary-body"><div class="cart-summary-name">' + l.brand + ' ' + l.model + '</div><div class="cart-summary-spec">' + l.c.join(', ') + '</div></div>' +
           '</div>';
       }).join('');
       cartSection = '' +
         '<div class="cart-summary">' +
           '<div class="cart-summary-head"><span class="cart-summary-title">Your laptops</span><button class="edit-link" data-action="edit-picks">Edit</button></div>' +
           rows +
-          '<div class="savings-row"><span class="savings-label">Projected saving vs list price</span><span class="savings-value">' + fmt(savingsN) + '</span></div>' +
+          '<div class="quote-row">We take these numbers to sellers and text you what they come back with.</div>' +
         '</div>';
     } else if (custom) {
       cartSection = '' +
