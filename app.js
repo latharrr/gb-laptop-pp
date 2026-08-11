@@ -37,15 +37,18 @@
   var K = '#1C1C1E', G = '#3A3A3C';
 
   // ---------- catalog ----------
-  // Every model, spec and price below comes from the FOT DU Laptop Group Buy
-  // Guide 2026, which verified them against retailer listings and price trackers
-  // on 8 and 9 August 2026.
+  // src = where the row came from, so the next person to touch a price knows how
+  //       much to trust it:
+  //   'guide'  FOT DU Laptop Group Buy Guide 2026, verified against retailer
+  //            listings and price trackers on 8 and 9 August 2026.
+  //   'prior'  carried over from the catalog that shipped before the guide
+  //            landed. Checked once, but not against the guide. Recheck these.
+  //   'added'  asked for by name and not in either list. Recheck these first.
   //
-  // price = street price in India. Where the guide quotes a range, this is the
-  //         low end, which is the number to negotiate towards. It also decides
+  // price = indicative street price, rounded to a x,999 ending for display. The
+  //         exact figures the guide verified are in the PDF. This also decides
   //         which budget band the laptop shows up in.
-  // mrp   = official list price. Only set where the guide states one, so most
-  //         rows have no strikethrough. Add more as they get verified.
+  // mrp   = list price, shown struck through. Only set where a source gave one.
   // img   = product photo from the brand's own CDN. Falls back to the
   //         illustration if it 404s or gets hotlink blocked.
   //
@@ -53,46 +56,70 @@
   var PRICES_CHECKED = '9 Aug 2026';
   function asusImg(id) { return 'https://dlcdnwebimgs.asus.com/gain/' + id + '/w400'; }
   var IMG_MBA = 'https://www.apple.com/v/macbook-air/z/images/overview/design/color/design_side_midnight__flnancj2vlme_large.jpg';
+  var IMG_MBP = 'https://www.apple.com/v/macbook-pro/ax/images/overview/product-viewer/pv_colors_spaceblack__dwfpyrbaf4cy_large.jpg';
   var IMG_VIVO16 = asusImg('e7bccfbd-9a96-4922-ad06-1814a770579a');
 
   var CATALOG = {
     game: [
-      { id: 'g1', brand: 'Lenovo', model: 'LOQ', c: ['RTX 3050 6GB', 'Ryzen 5 7235HS', '144Hz 100% sRGB'], why: 'The batch favourite. Only bright, colour true screen under ₹60k.', price: 57990, lid: K },
-      { id: 'g2', brand: 'HP', model: 'Victus 15 RTX 2050', c: ['RTX 2050', 'i5-12450H', 'RAM to 64GB'], why: 'Cheapest CUDA card for ML labs. Only if the budget is capped.', price: 54000, lid: G },
-      { id: 'g3', brand: 'HP', model: 'Victus 15 RTX 4050', c: ['RTX 4050', 'i5-13420H', 'DLSS 3.5'], why: 'Cheapest real RTX 4050, but only at sale prices. Set an alert.', price: 65000, lid: G },
-      { id: 'g4', brand: 'MSI', model: 'Thin 15', c: ['RTX 3050', 'i5-13420H', '1.86 kg'], why: 'The one gaming laptop light enough to carry every day.', price: 66990, lid: K },
-      { id: 'g5', brand: 'Acer', model: 'Nitro V 15', c: ['RTX 4050', 'Ryzen 5 6600H', '165Hz 300 nits'], why: 'Highest fps and the best screen under ₹80k.', price: 74000, lid: G },
-      { id: 'g6', brand: 'Dell', model: 'G15-5530', c: ['RTX 3050 6GB', 'i5-13450HX', '1TB SSD'], why: 'Worth it only if you need 1TB of storage on day one.', price: 74990, lid: K },
-      { id: 'g7', brand: 'ASUS', model: 'Gaming V16', c: ['RTX 3050 6GB', 'Core 5 210H', '16in 16:10'], why: 'Taller screen for code plus gaming, with Office bundled.', price: 79990, lid: K },
-      { id: 'g8', brand: 'HP', model: 'Victus 15 i7', c: ['RTX 4050', 'i7-13620H', '300 nits'], why: 'The i7 pays off if you compile and stream at the same time.', price: 102990, lid: G },
-      { id: 'g9', brand: 'ASUS', model: 'TUF A16', c: ['RTX 4050 140W', 'Ryzen 7 7445HS', '1TB SSD'], why: 'Best cooling here, so it holds speed through long sessions.', price: 102990, lid: K },
-      { id: 'g10', brand: 'HP', model: 'Omen 16', c: ['RTX 4060 8GB', 'QHD 165Hz', '1TB SSD'], why: 'The 8GB card matters for AI coursework and 1440p.', price: 129999, lid: G },
+      { id: 'g1', src: 'guide', brand: 'Lenovo', model: 'LOQ', c: ['RTX 3050 6GB', 'Ryzen 5 7235HS', '144Hz 100% sRGB'], why: 'The batch favourite. Only bright, colour true screen under ₹60k.', price: 57999, lid: K },
+      { id: 'g2', src: 'guide', brand: 'HP', model: 'Victus 15 RTX 2050', c: ['RTX 2050', 'i5-12450H', 'RAM to 64GB'], why: 'Cheapest CUDA card for ML labs. Only if the budget is capped.', price: 53999, lid: G },
+      { id: 'g3', src: 'guide', brand: 'HP', model: 'Victus 15 RTX 4050', c: ['RTX 4050', 'i5-13420H', 'DLSS 3.5'], why: 'Cheapest real RTX 4050, but only at sale prices. Set an alert.', price: 64999, lid: G },
+      { id: 'g4', src: 'prior', brand: 'ASUS', model: 'TUF Gaming A15', c: ['RTX 3050', 'Ryzen 7 7435HS', '16GB DDR5'], why: 'Valorant past 200 fps, and the RAM opens up later.', price: 64999, lid: K },
+      { id: 'g5', src: 'guide', brand: 'MSI', model: 'Thin 15', c: ['RTX 3050', 'i5-13420H', '1.86 kg'], why: 'The one gaming laptop light enough to carry every day.', price: 66999, lid: K },
+      { id: 'g6', src: 'guide', brand: 'Acer', model: 'Nitro V 15', c: ['RTX 4050', 'Ryzen 5 6600H', '165Hz 300 nits'], why: 'Highest fps and the best screen under ₹80k.', price: 73999, lid: G },
+      { id: 'g7', src: 'guide', brand: 'Dell', model: 'G15-5530', c: ['RTX 3050 6GB', 'i5-13450HX', '1TB SSD'], why: 'Worth it only if you need 1TB of storage on day one.', price: 74999, lid: K },
+      { id: 'g8', src: 'guide', brand: 'ASUS', model: 'Gaming V16', c: ['RTX 3050 6GB', 'Core 5 210H', '16in 16:10'], why: 'Taller screen for code plus gaming, with Office bundled.', price: 79999, lid: K },
+      { id: 'g9', src: 'guide', brand: 'HP', model: 'Victus 15 i7', c: ['RTX 4050', 'i7-13620H', '300 nits'], why: 'The i7 pays off if you compile and stream at the same time.', price: 102999, lid: G },
+      { id: 'g10', src: 'guide', brand: 'ASUS', model: 'TUF A16', c: ['RTX 4050 140W', 'Ryzen 7 7445HS', '1TB SSD'], why: 'Best cooling here, so it holds speed through long sessions.', price: 102999, lid: K },
+      { id: 'g11', src: 'prior', brand: 'ASUS', model: 'TUF Gaming F16', c: ['RTX 5050', 'i5-13450HX', '165Hz'], why: 'MIL-STD build that survives four years of hostel life.', price: 124999, lid: K },
+      { id: 'g12', src: 'guide', brand: 'HP', model: 'Omen 16', c: ['RTX 4060 8GB', 'QHD 165Hz', '1TB SSD'], why: 'The 8GB card matters for AI coursework and 1440p.', price: 129999, lid: G },
     ],
     code: [
-      { id: 'c1', brand: 'Acer', model: 'Aspire Go 14', c: ['Core Ultra 5 125H', '16GB DDR5', '512GB SSD'], why: 'Fastest chip under ₹60k, and the RAM goes to 32GB later.', price: 52990, lid: K },
-      { id: 'c2', brand: 'Apple', model: 'MacBook Neo', c: ['A18 Pro', '8GB unified', '13in Retina'], why: 'Cheapest Mac ever with a college ID. Not for SolidWorks branches.', price: 59900, mrp: 69900, lid: G },
-      { id: 'c3', brand: 'HP', model: 'Pavilion 16', c: ['Core Ultra 5 125U', '16GB LPDDR5', '16in WUXGA'], why: 'Big screen for split view coding. RAM is soldered though.', price: 64990, lid: G },
-      { id: 'c4', brand: 'ASUS', model: 'Vivobook S 15 OLED', c: ['i7 12th Gen H', '16GB RAM', '1TB SSD'], why: 'Solid large OLED, though newer chips undercut it now.', price: 68590, lid: K },
-      { id: 'c5', brand: 'Lenovo', model: 'IdeaPad Slim 5', c: ['Ryzen 7 7735HS', '16GB RAM', 'OLED options'], why: 'Safe all rounder with real service cover across Delhi NCR.', price: 73990, lid: G },
-      { id: 'c6', brand: 'HP', model: 'OmniBook 5', c: ['Ryzen AI 7 350', '16GB RAM', '16in 2K OLED'], why: 'Current gen chip and NPU. Built to still feel fine in year four.', price: 75490, lid: K },
-      { id: 'c7', brand: 'Apple', model: 'MacBook Air M4', c: ['M4', '16GB RAM', '18 hr battery'], why: 'Best battery, screen and resale value, if macOS suits your labs.', price: 89990, lid: K, img: IMG_MBA },
+      { id: 'c1', src: 'guide', brand: 'Lenovo', model: 'IdeaPad Slim 3x', c: ['Snapdragon X', '16GB RAM', 'Dual M.2 slots'], why: 'Two SSD slots and a shell that shrugs off a daily commute.', price: 47999, lid: G },
+      { id: 'c2', src: 'guide', brand: 'ASUS', model: 'Vivobook 16', c: ['Snapdragon X', '16GB RAM', '14 hr battery'], why: 'Runs Python, Java and VS Code all day without a charger.', price: 51999, lid: G, img: IMG_VIVO16 },
+      { id: 'c3', src: 'guide', brand: 'Acer', model: 'Aspire Go 14', c: ['Core Ultra 5 125H', '16GB DDR5', '512GB SSD'], why: 'Fastest chip under ₹60k, and the RAM goes to 32GB later.', price: 52999, lid: K },
+      { id: 'c4', src: 'guide', brand: 'Motorola', model: 'Motobook 60', c: ['Core 5 210H', '16GB to 32GB', '2.8K 120Hz OLED'], why: 'Best screen you can code on under ₹60k. Keep the charger close.', price: 59999, lid: G },
+      { id: 'c5', src: 'guide', brand: 'Apple', model: 'MacBook Neo', c: ['A18 Pro', '8GB unified', '13in Retina'], why: 'Cheapest Mac ever with a college ID. Not for SolidWorks branches.', price: 59999, mrp: 69999, lid: G },
+      { id: 'c6', src: 'prior', brand: 'Lenovo', model: 'IdeaPad Slim 5 OLED', c: ['Ryzen 7', '16GB RAM', '2.8K OLED'], why: 'OLED this sharp usually costs ten thousand more.', price: 61999, lid: G },
+      { id: 'c7', src: 'guide', brand: 'HP', model: 'Pavilion 16', c: ['Core Ultra 5 125U', '16GB LPDDR5', '16in WUXGA'], why: 'Big screen for split view coding. RAM is soldered though.', price: 64999, lid: G },
+      { id: 'c8', src: 'guide', brand: 'ASUS', model: 'Vivobook S 15 OLED', c: ['i7 12th Gen H', '16GB RAM', '1TB SSD'], why: 'Solid large OLED, though newer chips undercut it now.', price: 68999, lid: K },
+      { id: 'c9', src: 'guide', brand: 'Lenovo', model: 'IdeaPad Slim 5', c: ['Ryzen 7 7735HS', '16GB RAM', 'OLED options'], why: 'Safe all rounder with real service cover across Delhi NCR.', price: 73999, lid: G },
+      { id: 'c10', src: 'guide', brand: 'HP', model: 'OmniBook 5', c: ['Ryzen AI 7 350', '16GB RAM', '16in 2K OLED'], why: 'Current gen chip and NPU. Built to still feel fine in year four.', price: 75999, lid: K },
+      { id: 'c11', src: 'guide', brand: 'ASUS', model: 'Gaming V16', c: ['RTX 3050 6GB', 'Core 5 210H', '16in 16:10'], why: 'A CUDA card and a tall screen, if ML coursework is coming.', price: 79999, lid: K },
+      { id: 'c12', src: 'prior', brand: 'Lenovo', model: 'Yoga Slim 7', c: ['Core Ultra 5 125H', '16GB RAM', '2.8K OLED'], why: '1.3 kg, quiet, and a real screen for long days.', price: 84999, lid: G },
+      { id: 'c13', src: 'guide', brand: 'Apple', model: 'MacBook Air M4', c: ['M4', '16GB RAM', '18 hr battery'], why: 'Best battery, screen and resale value, if macOS suits your labs.', price: 89999, lid: K, img: IMG_MBA },
+      { id: 'c14', src: 'added', brand: 'Apple', model: 'MacBook Air M5', c: ['M5', '16GB RAM', '512GB SSD'], why: 'The newest Air. Silent, Unix shell, and it never feels slow.', price: 113999, mrp: 119999, lid: K, img: IMG_MBA },
+      { id: 'c15', src: 'prior', brand: 'Apple', model: 'MacBook Pro 14 M5', c: ['M5', '16GB RAM', 'XDR display'], why: 'Flies through the longest builds without throttling.', price: 169999, mrp: 169999, lid: G, img: IMG_MBP },
     ],
     bal: [
-      { id: 'b1', brand: 'Lenovo', model: 'IdeaPad Slim 3x', c: ['Snapdragon X', '16GB RAM', 'MIL-STD-810H'], why: 'Military grade shell and the only 5MP webcam under ₹60k.', price: 48000, lid: G },
-      { id: 'b2', brand: 'ASUS', model: 'Vivobook 16', c: ['Snapdragon X', '16GB RAM', '14 hr battery'], why: 'A full college day without carrying the charger.', price: 51500, lid: G, img: IMG_VIVO16 },
-      { id: 'b3', brand: 'Acer', model: 'Aspire Go 14', c: ['Core Ultra 5 125H', '16GB DDR5', '1.5 kg'], why: 'The guide top pick. Fast, light and upgradeable.', price: 52990, lid: K },
-      { id: 'b4', brand: 'HP', model: 'Pavilion 16', c: ['Core Ultra 5 125U', '16in WUXGA', 'Face unlock'], why: 'Made for online classes. Sharp 1080p camera, stays silent.', price: 64990, lid: G },
-      { id: 'b5', brand: 'Lenovo', model: 'IdeaPad Slim 5', c: ['Ryzen 7 7735HS', '16GB RAM', 'Metal body'], why: 'Quick service in Delhi when something breaks mid semester.', price: 73990, lid: G },
-      { id: 'b6', brand: 'ASUS', model: 'Zenbook 14 OLED', c: ['Core Ultra or X Elite', '16GB RAM', '14in 3K OLED'], why: 'The closest Windows gets to a MacBook Air.', price: 86990, lid: K },
-      { id: 'b7', brand: 'Apple', model: 'MacBook Air M4', c: ['M4', '16GB RAM', '1.24 kg'], why: 'Silent, fanless and good for all four years.', price: 89990, lid: K, img: IMG_MBA },
+      { id: 'b1', src: 'prior', brand: 'Acer', model: 'Aspire Lite', c: ['Ryzen 5', '16GB RAM', '512GB SSD'], why: 'Everything a fresher needs and nothing extra.', price: 42999, lid: G },
+      { id: 'b2', src: 'prior', brand: 'HP', model: '15s', c: ['i5-1335U', '16GB RAM', '512GB SSD'], why: 'Safe pick, serviceable in almost every small town.', price: 45999, lid: K },
+      { id: 'b3', src: 'guide', brand: 'Lenovo', model: 'IdeaPad Slim 3x', c: ['Snapdragon X', '16GB RAM', 'MIL-STD-810H'], why: 'Military grade shell and the only 5MP webcam under ₹60k.', price: 47999, lid: G },
+      { id: 'b4', src: 'guide', brand: 'ASUS', model: 'Vivobook 16', c: ['Snapdragon X', '16GB RAM', '14 hr battery'], why: 'A full college day without carrying the charger.', price: 51999, lid: G, img: IMG_VIVO16 },
+      { id: 'b5', src: 'guide', brand: 'Acer', model: 'Aspire Go 14', c: ['Core Ultra 5 125H', '16GB DDR5', '1.5 kg'], why: 'The guide top pick. Fast, light and upgradeable.', price: 52999, lid: K },
+      { id: 'b6', src: 'guide', brand: 'Apple', model: 'MacBook Neo', c: ['A18 Pro', '8GB unified', '16 hr battery'], why: 'Fanless, silent, and it lasts a full day of classes.', price: 59999, mrp: 69999, lid: G },
+      { id: 'b7', src: 'prior', brand: 'Lenovo', model: 'IdeaPad Slim 5 OLED', c: ['Ryzen 7', '16GB RAM', '2.8K OLED'], why: 'The cheapest screen here that you will actually enjoy.', price: 61999, lid: G },
+      { id: 'b8', src: 'guide', brand: 'HP', model: 'Pavilion 16', c: ['Core Ultra 5 125U', '16in WUXGA', 'Face unlock'], why: 'Made for online classes. Sharp 1080p camera, stays silent.', price: 64999, lid: G },
+      { id: 'b9', src: 'guide', brand: 'Lenovo', model: 'IdeaPad Slim 5', c: ['Ryzen 7 7735HS', '16GB RAM', 'Metal body'], why: 'Quick service in Delhi when something breaks mid semester.', price: 73999, lid: G },
+      { id: 'b10', src: 'guide', brand: 'HP', model: 'OmniBook 5', c: ['Ryzen AI 7 350', '16GB RAM', '16in 2K OLED'], why: 'Premium build that still feels current in four years.', price: 75999, lid: K },
+      { id: 'b11', src: 'prior', brand: 'Lenovo', model: 'Yoga Slim 7', c: ['Core Ultra 5 125H', '16GB RAM', '2.8K OLED'], why: 'Light, quiet and easy to live with all day.', price: 84999, lid: G },
+      { id: 'b12', src: 'guide', brand: 'ASUS', model: 'Zenbook 14 OLED', c: ['Core Ultra or X Elite', '16GB RAM', '14in 3K OLED'], why: 'The closest Windows gets to a MacBook Air.', price: 86999, lid: K },
+      { id: 'b13', src: 'guide', brand: 'Apple', model: 'MacBook Air M4', c: ['M4', '16GB RAM', '1.24 kg'], why: 'Silent, fanless and good for all four years.', price: 89999, lid: K, img: IMG_MBA },
+      { id: 'b14', src: 'added', brand: 'Apple', model: 'MacBook Air M5', c: ['M5', '16GB RAM', '512GB SSD'], why: 'The newest Air, with double the storage of the M4 base.', price: 113999, mrp: 119999, lid: K, img: IMG_MBA },
     ],
     des: [
-      { id: 'd1', brand: 'Motorola', model: 'Motobook 60', c: ['14in 2.8K OLED', '120Hz', '100% DCI-P3'], why: 'A flagship panel at a mid range price. Battery is the trade off.', price: 59990, lid: G },
-      { id: 'd2', brand: 'ASUS', model: 'Vivobook S 15 OLED', c: ['15.6in OLED', 'i7 12th Gen H', '1TB SSD'], why: 'Large OLED with room for footage and project files.', price: 68590, lid: K },
-      { id: 'd3', brand: 'Acer', model: 'Nitro V 15', c: ['RTX 4050', 'Ryzen 5 6600H', '165Hz 300 nits'], why: 'The GPU SolidWorks, ANSYS and Blender actually want.', price: 74000, lid: G },
-      { id: 'd4', brand: 'HP', model: 'OmniBook 5', c: ['16in 2K OLED', 'Ryzen AI 7 350', 'Touch options'], why: 'OLED touch panel in a slim aluminium body.', price: 75490, lid: K },
-      { id: 'd5', brand: 'ASUS', model: 'Zenbook 14 OLED', c: ['14in 3K OLED', 'Core Ultra or X Elite', 'Under 1.3 kg'], why: 'Colour true and still light enough to carry to studio.', price: 86990, lid: K },
-      { id: 'd6', brand: 'HP', model: 'Omen 16', c: ['RTX 4060 8GB', 'QHD 165Hz', '1TB SSD'], why: 'For heavy 3D, render queues and AI work.', price: 129999, lid: G },
+      { id: 'd1', src: 'guide', brand: 'Lenovo', model: 'LOQ', c: ['RTX 3050 6GB', '100% sRGB', '300 nits'], why: 'The only sub ₹60k machine with colour you can trust.', price: 57999, lid: K },
+      { id: 'd2', src: 'guide', brand: 'Motorola', model: 'Motobook 60', c: ['14in 2.8K OLED', '120Hz', '100% DCI-P3'], why: 'A flagship panel at a mid range price. Battery is the trade off.', price: 59999, lid: G },
+      { id: 'd3', src: 'prior', brand: 'Lenovo', model: 'IdeaPad Slim 5 OLED', c: ['2.8K OLED', 'Ryzen 7', '16GB RAM'], why: '100% DCI-P3 colour without leaving the budget.', price: 61999, lid: G },
+      { id: 'd4', src: 'guide', brand: 'HP', model: 'Victus 15 RTX 4050', c: ['RTX 4050', 'DLSS 3.5', '300 nits'], why: 'Cheapest way to get a card that renders and trains.', price: 64999, lid: G },
+      { id: 'd5', src: 'guide', brand: 'ASUS', model: 'Vivobook S 15 OLED', c: ['15.6in OLED', 'i7 12th Gen H', '1TB SSD'], why: 'Large OLED with room for footage and project files.', price: 68999, lid: K },
+      { id: 'd6', src: 'guide', brand: 'Acer', model: 'Nitro V 15', c: ['RTX 4050', 'Ryzen 5 6600H', '165Hz 300 nits'], why: 'The GPU SolidWorks, ANSYS and Blender actually want.', price: 73999, lid: G },
+      { id: 'd7', src: 'guide', brand: 'HP', model: 'OmniBook 5', c: ['16in 2K OLED', 'Ryzen AI 7 350', 'Touch options'], why: 'OLED touch panel in a slim aluminium body.', price: 75999, lid: K },
+      { id: 'd8', src: 'prior', brand: 'ASUS', model: 'Vivobook S14 OLED', c: ['Core Ultra 5', '16GB RAM', 'OLED'], why: '1.4 kg with a colour true panel. Easy to carry to studio.', price: 84999, lid: K },
+      { id: 'd9', src: 'guide', brand: 'ASUS', model: 'Zenbook 14 OLED', c: ['14in 3K OLED', 'Core Ultra or X Elite', 'Under 1.3 kg'], why: 'Colour true and still light enough to carry all day.', price: 86999, lid: K },
+      { id: 'd10', src: 'guide', brand: 'ASUS', model: 'TUF A16', c: ['RTX 4050 140W', 'Ryzen 7 7445HS', '1TB SSD'], why: 'Sustained power for CAD and long render queues.', price: 102999, lid: K },
+      { id: 'd11', src: 'guide', brand: 'HP', model: 'Omen 16', c: ['RTX 4060 8GB', 'QHD 165Hz', '1TB SSD'], why: 'For heavy 3D, render queues and AI work.', price: 129999, lid: G },
+      { id: 'd12', src: 'prior', brand: 'Apple', model: 'MacBook Pro 14 M5', c: ['M5', '16GB RAM', 'XDR display'], why: 'Final Cut, colour true screen, and it never gets loud.', price: 169999, mrp: 169999, lid: K, img: IMG_MBP },
     ],
   };
 
@@ -117,7 +144,11 @@
   var ORDER = ['landing', 'purpose', 'budget', 'picks', 'timeline', 'intent', 'contact', 'done'];
 
   function fmt(n) { return '₹' + n.toLocaleString('en-IN'); }
-  function poolPrice(n) { return Math.round(n * (1 - DISC / 100) / 10) * 10; }
+  // Every number on screen lands on a x,999 ending. Retail prices in India are
+  // written this way, and it keeps the pool price and the saving from coming out
+  // as ragged figures like ₹48,759.
+  function pretty(n) { return Math.round(n / 1000) * 1000 - 1; }
+  function poolPrice(n) { return pretty(n * (1 - DISC / 100)); }
   function matches(purpose, band) { return (CATALOG[purpose] || []).filter(function (l) { return l.band === band; }); }
   function nextBandWith(purpose, band) {
     var cands = [band + 1, band + 2, band - 1, band - 2];
