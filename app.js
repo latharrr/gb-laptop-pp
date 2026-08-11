@@ -186,7 +186,7 @@
         '<div class="landing-mid">' +
           landingHeroSvg() +
           '<h1 class="landing-title">Buy together, pay less</h1>' +
-          '<p class="landing-sub">Join your campus pool. Every fresher who joins drops the price on the same laptop — same model, same warranty.</p>' +
+          '<p class="landing-sub">Join your campus pool. Every fresher who joins drops the price on the same laptop. Same model, same warranty.</p>' +
           '<div class="live-chip-row"><div class="live-chip"><span class="live-dot"></span><span class="live-text">214 freshers pooling right now</span></div></div>' +
         '</div>' +
         '<div class="landing-footer"><button class="btn-primary" data-action="go-start">Find my laptop</button></div>' +
@@ -406,7 +406,7 @@
     var savingsN = cartItems.reduce(function (a, l) { return a + (l.price - poolPrice(l.price)); }, 0);
     var phoneOk = /^\d{10}$/.test(state.phone);
     var maskedPhone = phoneOk ? '+91 ' + state.phone.slice(0, 2) + '••••••' + state.phone.slice(8) : 'you';
-    var waMsg = 'Freshers laptop pool on Picapool — the price drops as more of us join. Join pool ' + POOL_ID;
+    var waMsg = 'Freshers laptop pool on Picapool. The price drops as more of us join. Join pool ' + POOL_ID;
     var waHref = 'https://wa.me/?text=' + encodeURIComponent(waMsg);
 
     var cartSection;
