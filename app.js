@@ -5,55 +5,106 @@
   var DISC = 8; // % discount
   var POOL_ID = 'AUG-LPT-07';
 
-  var BANDS = ['Under ₹50k', '₹50k–70k', '₹70k–90k', 'Above ₹90k'];
-  var BANDP = ['under ₹50k', 'in ₹50k–70k', 'in ₹70k–90k', 'above ₹90k'];
+  // ---------- google sheet ----------
+  // Paste the Apps Script web app URL here, the one ending in /exec. The script
+  // and its setup steps live in google-sheet.gs. Leaving this empty is safe: the
+  // form still works end to end and every response is logged to the console
+  // instead, so the sheet can be wired up later without touching anything else.
+  var SHEET_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwZQmKE5tGvaq-SpbmV_f9D9YA0FCv6aofU-r13uUNNuh_Wc7sRXPGc4VE6yKBKROow_g/exec';
+  var SHEET_SECRET = ''; // must match SHARED_SECRET in google-sheet.gs, if set there
+  var QUEUE_KEY = 'pp_sheet_queue';
+  var VISIT_KEY = 'pp_visit_logged';
+  var SEEN_KEY = 'pp_seen_before';
+
+  // ---------- where the visitor came from ----------
+  // The first path segment is the campaign tag, so laptop.picapool.tech/test
+  // stamps every response from that link as "test". Hand a different tag to the
+  // WhatsApp group, the poster QR and the Instagram bio and the sheet tells you
+  // which one actually worked. Vercel rewrites unknown paths back to index.html,
+  // so every tag opens the same home screen.
+  var SOURCE = (function () {
+    var seg = location.pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
+    return seg ? seg.slice(0, 40).toLowerCase() : 'direct';
+  })();
+
+  // Budget bands follow the FOT DU guide brackets so the picks line up with it.
+  var BANDS = ['Under ₹60k', '₹60k–70k', '₹70k–80k', 'Above ₹80k'];
+  var BANDP = ['under ₹60k', 'in ₹60k–70k', 'in ₹70k–80k', 'above ₹80k'];
+  var BAND_MAX = [60000, 70000, 80000, Infinity];
   var PSHORT = { game: 'gaming', code: 'coding', bal: 'everyday use', des: 'design work' };
+  var PLABEL = { game: 'Gaming', code: 'Heavy coding and dev', bal: 'Balanced everyday use', des: 'Design and editing' };
 
   var K = '#1C1C1E', G = '#3A3A3C';
 
   // ---------- catalog ----------
-  // price = typical street price in India, used for budget-band matching and shown on the card.
-  // mrp   = official list price, only set where a source was found. Shown struck through.
-  // img   = product photo from the brand's own CDN. Falls back to the illustration if it fails.
-  // Checked Aug 2026 against Apple India, ASUS India, Flipkart listings and current India
-  // buying guides. Street prices move every sale, so recheck before each campaign.
-  var PRICES_CHECKED = 'Aug 2026';
+  // Every model, spec and price below comes from the FOT DU Laptop Group Buy
+  // Guide 2026, which verified them against retailer listings and price trackers
+  // on 8 and 9 August 2026.
+  //
+  // price = street price in India. Where the guide quotes a range, this is the
+  //         low end, which is the number to negotiate towards. It also decides
+  //         which budget band the laptop shows up in.
+  // mrp   = official list price. Only set where the guide states one, so most
+  //         rows have no strikethrough. Add more as they get verified.
+  // img   = product photo from the brand's own CDN. Falls back to the
+  //         illustration if it 404s or gets hotlink blocked.
+  //
+  // Prices in India move every sale. Recheck before each campaign.
+  var PRICES_CHECKED = '9 Aug 2026';
   function asusImg(id) { return 'https://dlcdnwebimgs.asus.com/gain/' + id + '/w400'; }
-  var APPLE_IMG = 'https://www.apple.com/v/';
-  var IMG_MBA = APPLE_IMG + 'macbook-air/z/images/overview/design/color/design_side_midnight__flnancj2vlme_large.jpg';
-  var IMG_MBP = APPLE_IMG + 'macbook-pro/ax/images/overview/product-viewer/pv_colors_spaceblack__dwfpyrbaf4cy_large.jpg';
+  var IMG_MBA = 'https://www.apple.com/v/macbook-air/z/images/overview/design/color/design_side_midnight__flnancj2vlme_large.jpg';
+  var IMG_VIVO16 = asusImg('e7bccfbd-9a96-4922-ad06-1814a770579a');
 
   var CATALOG = {
     game: [
-      { id: 'g1', band: 1, brand: 'ASUS', model: 'TUF Gaming A15', c: ['RTX 3050', 'Ryzen 7 7435HS', '16GB DDR5'], why: 'Valorant past 200 fps, RAM upgradable later.', price: 64990, lid: K },
-      { id: 'g2', band: 2, brand: 'Acer', model: 'Nitro V 15', c: ['RTX 4050', 'Ryzen 7 7735HS', '16GB RAM'], why: 'Cheapest real RTX 4050 on the market.', price: 81990, mrp: 106999, lid: G },
-      { id: 'g3', band: 2, brand: 'ASUS', model: 'Gaming V16', c: ['RTX 5050', 'Core 5 210H', '144Hz'], why: 'Cheapest way into the RTX 50 series.', price: 84990, lid: K },
-      { id: 'g4', band: 3, brand: 'HP', model: 'Victus 15', c: ['RTX 4050', 'Ryzen 7 7445H', '16GB RAM'], why: 'Steady 1080p in every AAA title.', price: 93990, mrp: 95746, lid: G },
-      { id: 'g5', band: 3, brand: 'ASUS', model: 'TUF Gaming F16', c: ['RTX 5050', 'i5-13450HX', '165Hz'], why: 'MIL-STD build, survives hostel life.', price: 124990, lid: K, img: asusImg('8c753484-c6f3-4780-a593-d54acbf50676') },
+      { id: 'g1', brand: 'Lenovo', model: 'LOQ', c: ['RTX 3050 6GB', 'Ryzen 5 7235HS', '144Hz 100% sRGB'], why: 'The batch favourite. Only bright, colour true screen under ₹60k.', price: 57990, lid: K },
+      { id: 'g2', brand: 'HP', model: 'Victus 15 RTX 2050', c: ['RTX 2050', 'i5-12450H', 'RAM to 64GB'], why: 'Cheapest CUDA card for ML labs. Only if the budget is capped.', price: 54000, lid: G },
+      { id: 'g3', brand: 'HP', model: 'Victus 15 RTX 4050', c: ['RTX 4050', 'i5-13420H', 'DLSS 3.5'], why: 'Cheapest real RTX 4050, but only at sale prices. Set an alert.', price: 65000, lid: G },
+      { id: 'g4', brand: 'MSI', model: 'Thin 15', c: ['RTX 3050', 'i5-13420H', '1.86 kg'], why: 'The one gaming laptop light enough to carry every day.', price: 66990, lid: K },
+      { id: 'g5', brand: 'Acer', model: 'Nitro V 15', c: ['RTX 4050', 'Ryzen 5 6600H', '165Hz 300 nits'], why: 'Highest fps and the best screen under ₹80k.', price: 74000, lid: G },
+      { id: 'g6', brand: 'Dell', model: 'G15-5530', c: ['RTX 3050 6GB', 'i5-13450HX', '1TB SSD'], why: 'Worth it only if you need 1TB of storage on day one.', price: 74990, lid: K },
+      { id: 'g7', brand: 'ASUS', model: 'Gaming V16', c: ['RTX 3050 6GB', 'Core 5 210H', '16in 16:10'], why: 'Taller screen for code plus gaming, with Office bundled.', price: 79990, lid: K },
+      { id: 'g8', brand: 'HP', model: 'Victus 15 i7', c: ['RTX 4050', 'i7-13620H', '300 nits'], why: 'The i7 pays off if you compile and stream at the same time.', price: 102990, lid: G },
+      { id: 'g9', brand: 'ASUS', model: 'TUF A16', c: ['RTX 4050 140W', 'Ryzen 7 7445HS', '1TB SSD'], why: 'Best cooling here, so it holds speed through long sessions.', price: 102990, lid: K },
+      { id: 'g10', brand: 'HP', model: 'Omen 16', c: ['RTX 4060 8GB', 'QHD 165Hz', '1TB SSD'], why: 'The 8GB card matters for AI coursework and 1440p.', price: 129999, lid: G },
     ],
     code: [
-      { id: 'c1', band: 0, brand: 'Lenovo', model: 'IdeaPad Slim 3', c: ['Ryzen 5', '16GB RAM', '512GB SSD'], why: 'Handles VS Code and light Docker.', price: 49990, lid: G },
-      { id: 'c2', band: 1, brand: 'ASUS', model: 'Vivobook 15', c: ['i5-1335U', '16GB RAM', '512GB SSD'], why: 'Cheapest 16GB machine worth owning.', price: 55990, lid: K },
-      { id: 'c3', band: 2, brand: 'Lenovo', model: 'Yoga Slim 7', c: ['Core Ultra 5 125H', '16GB RAM', '2.8K OLED'], why: '1.3kg, quiet, real screen for long days.', price: 84990, lid: G },
-      { id: 'c4', band: 3, brand: 'Apple', model: 'MacBook Air M5', c: ['M5', '16GB RAM', '512GB SSD'], why: 'Silent, Unix shell, campus favourite.', price: 113890, mrp: 119900, lid: K, img: IMG_MBA },
-      { id: 'c5', band: 3, brand: 'Apple', model: 'MacBook Pro 14 M5', c: ['M5', '16GB RAM', 'XDR display'], why: 'Flies through the longest builds.', price: 169900, mrp: 169900, lid: G, img: IMG_MBP },
+      { id: 'c1', brand: 'Acer', model: 'Aspire Go 14', c: ['Core Ultra 5 125H', '16GB DDR5', '512GB SSD'], why: 'Fastest chip under ₹60k, and the RAM goes to 32GB later.', price: 52990, lid: K },
+      { id: 'c2', brand: 'Apple', model: 'MacBook Neo', c: ['A18 Pro', '8GB unified', '13in Retina'], why: 'Cheapest Mac ever with a college ID. Not for SolidWorks branches.', price: 59900, mrp: 69900, lid: G },
+      { id: 'c3', brand: 'HP', model: 'Pavilion 16', c: ['Core Ultra 5 125U', '16GB LPDDR5', '16in WUXGA'], why: 'Big screen for split view coding. RAM is soldered though.', price: 64990, lid: G },
+      { id: 'c4', brand: 'ASUS', model: 'Vivobook S 15 OLED', c: ['i7 12th Gen H', '16GB RAM', '1TB SSD'], why: 'Solid large OLED, though newer chips undercut it now.', price: 68590, lid: K },
+      { id: 'c5', brand: 'Lenovo', model: 'IdeaPad Slim 5', c: ['Ryzen 7 7735HS', '16GB RAM', 'OLED options'], why: 'Safe all rounder with real service cover across Delhi NCR.', price: 73990, lid: G },
+      { id: 'c6', brand: 'HP', model: 'OmniBook 5', c: ['Ryzen AI 7 350', '16GB RAM', '16in 2K OLED'], why: 'Current gen chip and NPU. Built to still feel fine in year four.', price: 75490, lid: K },
+      { id: 'c7', brand: 'Apple', model: 'MacBook Air M4', c: ['M4', '16GB RAM', '18 hr battery'], why: 'Best battery, screen and resale value, if macOS suits your labs.', price: 89990, lid: K, img: IMG_MBA },
     ],
     bal: [
-      { id: 'b1', band: 0, brand: 'Acer', model: 'Aspire Lite', c: ['Ryzen 5', '16GB RAM', '512GB SSD'], why: 'Everything a fresher needs, nothing extra.', price: 42990, lid: G },
-      { id: 'b2', band: 0, brand: 'HP', model: '15s', c: ['i5-1335U', '16GB RAM', '512GB SSD'], why: 'Safe, serviceable in every small town.', price: 45990, lid: K },
-      { id: 'b3', band: 0, brand: 'Motorola', model: 'Book 60', c: ['Core i5', '16GB RAM', 'OLED 120Hz'], why: 'Only OLED screen under ₹50k.', price: 49999, lid: G },
-      { id: 'b4', band: 1, brand: 'ASUS', model: 'Vivobook 16', c: ['Ryzen 7', '16GB RAM', '16in screen'], why: 'Big screen, still light enough to carry.', price: 55990, lid: G, img: asusImg('e7bccfbd-9a96-4922-ad06-1814a770579a') },
-      { id: 'b5', band: 2, brand: 'ASUS', model: 'Zenbook 14 OLED', c: ['Core Ultra 5', '16GB RAM', 'OLED'], why: 'Metal build, all-day battery.', price: 84990, lid: K },
-      { id: 'b6', band: 3, brand: 'Dell', model: '14 Plus 2-in-1', c: ['Ryzen AI 7 350', '16GB RAM', 'Touch'], why: 'Folds flat for notes in class.', price: 98990, lid: G },
-      { id: 'b7', band: 3, brand: 'Apple', model: 'MacBook Air M5', c: ['M5', '16GB RAM', '512GB SSD'], why: 'Lasts all four years.', price: 113890, mrp: 119900, lid: K, img: IMG_MBA },
+      { id: 'b1', brand: 'Lenovo', model: 'IdeaPad Slim 3x', c: ['Snapdragon X', '16GB RAM', 'MIL-STD-810H'], why: 'Military grade shell and the only 5MP webcam under ₹60k.', price: 48000, lid: G },
+      { id: 'b2', brand: 'ASUS', model: 'Vivobook 16', c: ['Snapdragon X', '16GB RAM', '14 hr battery'], why: 'A full college day without carrying the charger.', price: 51500, lid: G, img: IMG_VIVO16 },
+      { id: 'b3', brand: 'Acer', model: 'Aspire Go 14', c: ['Core Ultra 5 125H', '16GB DDR5', '1.5 kg'], why: 'The guide top pick. Fast, light and upgradeable.', price: 52990, lid: K },
+      { id: 'b4', brand: 'HP', model: 'Pavilion 16', c: ['Core Ultra 5 125U', '16in WUXGA', 'Face unlock'], why: 'Made for online classes. Sharp 1080p camera, stays silent.', price: 64990, lid: G },
+      { id: 'b5', brand: 'Lenovo', model: 'IdeaPad Slim 5', c: ['Ryzen 7 7735HS', '16GB RAM', 'Metal body'], why: 'Quick service in Delhi when something breaks mid semester.', price: 73990, lid: G },
+      { id: 'b6', brand: 'ASUS', model: 'Zenbook 14 OLED', c: ['Core Ultra or X Elite', '16GB RAM', '14in 3K OLED'], why: 'The closest Windows gets to a MacBook Air.', price: 86990, lid: K },
+      { id: 'b7', brand: 'Apple', model: 'MacBook Air M4', c: ['M4', '16GB RAM', '1.24 kg'], why: 'Silent, fanless and good for all four years.', price: 89990, lid: K, img: IMG_MBA },
     ],
     des: [
-      { id: 'd1', band: 1, brand: 'Lenovo', model: 'IdeaPad Slim 5 OLED', c: ['OLED 2.8K', 'Ryzen 7', '16GB RAM'], why: '100% DCI-P3 colour on a budget.', price: 61990, lid: G },
-      { id: 'd2', band: 2, brand: 'ASUS', model: 'Vivobook S14 OLED', c: ['Core Ultra 5', '16GB RAM', 'OLED'], why: '1.4kg with a colour-true panel.', price: 84990, lid: K },
-      { id: 'd3', band: 3, brand: 'HP', model: 'Omen 16', c: ['RTX 5060', '16GB RAM', 'QHD 240Hz'], why: 'Heavy 3D and render rigs.', price: 119990, lid: G },
-      { id: 'd4', band: 3, brand: 'Apple', model: 'MacBook Pro 14 M5', c: ['M5', '16GB RAM', 'XDR display'], why: 'Final Cut, colour-true screen.', price: 169900, mrp: 169900, lid: K, img: IMG_MBP },
+      { id: 'd1', brand: 'Motorola', model: 'Motobook 60', c: ['14in 2.8K OLED', '120Hz', '100% DCI-P3'], why: 'A flagship panel at a mid range price. Battery is the trade off.', price: 59990, lid: G },
+      { id: 'd2', brand: 'ASUS', model: 'Vivobook S 15 OLED', c: ['15.6in OLED', 'i7 12th Gen H', '1TB SSD'], why: 'Large OLED with room for footage and project files.', price: 68590, lid: K },
+      { id: 'd3', brand: 'Acer', model: 'Nitro V 15', c: ['RTX 4050', 'Ryzen 5 6600H', '165Hz 300 nits'], why: 'The GPU SolidWorks, ANSYS and Blender actually want.', price: 74000, lid: G },
+      { id: 'd4', brand: 'HP', model: 'OmniBook 5', c: ['16in 2K OLED', 'Ryzen AI 7 350', 'Touch options'], why: 'OLED touch panel in a slim aluminium body.', price: 75490, lid: K },
+      { id: 'd5', brand: 'ASUS', model: 'Zenbook 14 OLED', c: ['14in 3K OLED', 'Core Ultra or X Elite', 'Under 1.3 kg'], why: 'Colour true and still light enough to carry to studio.', price: 86990, lid: K },
+      { id: 'd6', brand: 'HP', model: 'Omen 16', c: ['RTX 4060 8GB', 'QHD 165Hz', '1TB SSD'], why: 'For heavy 3D, render queues and AI work.', price: 129999, lid: G },
     ],
   };
+
+  // Band comes from the price so a card can never sit in a bracket its own price
+  // contradicts. Ranges in the guide are keyed off their low end.
+  function bandFor(price) {
+    for (var i = 0; i < BAND_MAX.length; i++) if (price < BAND_MAX[i]) return i;
+    return BAND_MAX.length - 1;
+  }
+  Object.keys(CATALOG).forEach(function (p) {
+    CATALOG[p].forEach(function (l) { l.band = bandFor(l.price); });
+  });
   var ALL_LAPTOPS = [].concat(CATALOG.game, CATALOG.code, CATALOG.bal, CATALOG.des);
 
   var INTENTS = [
@@ -106,8 +157,8 @@
   // ---------- state ----------
   var initialState = {
     screen: 'landing', purpose: null, budget: null, loading: false, bumped: false,
-    cart: {}, week: null, intent: null, fromDone: false,
-    name: '', phone: '', tried: false,
+    cart: {}, custom: '', week: null, intent: null, fromDone: false,
+    name: '', phone: '', tried: false, leadId: null,
   };
   var state = Object.assign({}, initialState);
   var pendingTimer = null;
@@ -134,6 +185,125 @@
     clearAutoJoin();
     setState(Object.assign({}, initialState, { cart: {} }));
   }
+  // The single door into the pool screen, from the button, from auto capture and
+  // from coming back after an edit. The lead ID is minted once and reused, so a
+  // second send updates that person's row instead of adding another.
+  function enterDone() {
+    clearAutoJoin();
+    clearTimeout(pendingTimer);
+    setState({ screen: 'done', fromDone: false, leadId: state.leadId || newLeadId() });
+    sendToSheet();
+  }
+
+  // ---------- sending responses to the sheet ----------
+  function cartLaptops() {
+    var ids = Object.keys(state.cart).filter(function (k) { return state.cart[k]; });
+    return ALL_LAPTOPS.filter(function (l) { return ids.indexOf(l.id) !== -1; });
+  }
+  function newLeadId() {
+    return 'pp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+  }
+  function intentTitle(key) {
+    for (var i = 0; i < INTENTS.length; i++) if (INTENTS[i].key === key) return INTENTS[i].title;
+    return '';
+  }
+  function weekLabel() {
+    if (state.week === 'unsure') return 'Not sure yet';
+    if (typeof state.week !== 'number') return '';
+    var weeks = buildWeeks();
+    return weekRange(weeks[state.week]) + ' (' + weekRelative(state.week).toLowerCase() + ')';
+  }
+  // One flat object per response. Flat because every key becomes a sheet column.
+  function leadPayload() {
+    var items = cartLaptops();
+    return {
+      leadId: state.leadId,
+      poolId: POOL_ID,
+      submittedAt: new Date().toISOString(),
+      name: state.name.trim(),
+      phone: '+91' + state.phone,
+      purpose: PLABEL[state.purpose] || '',
+      budget: state.budget != null ? BANDS[state.budget] : '',
+      picks: items.map(function (l) { return l.brand + ' ' + l.model + ' ' + fmt(l.price); }).join(' | '),
+      pickCount: items.length,
+      custom: state.custom.trim(),
+      week: weekLabel(),
+      readiness: intentTitle(state.intent),
+      poolTotal: items.reduce(function (a, l) { return a + poolPrice(l.price); }, 0),
+      listTotal: items.reduce(function (a, l) { return a + (l.mrp || l.price); }, 0),
+      source: SOURCE,
+      host: location.hostname || 'local',
+    };
+  }
+  // text/plain keeps this a simple request, so the browser skips the preflight
+  // that Apps Script cannot answer. no-cors means the response is opaque, so a
+  // rejected promise (offline, DNS, blocked) is the only failure we can see.
+  function post(body) {
+    return fetch(SHEET_ENDPOINT, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: body,
+      keepalive: true,
+    });
+  }
+  function readQueue() {
+    try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function writeQueue(q) {
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q.slice(-20))); } catch (e) { /* private mode */ }
+  }
+  function queueBody(body) {
+    var q = readQueue();
+    q.push(body);
+    writeQueue(q);
+  }
+  function send(body) {
+    post(body).catch(function () { queueBody(body); });
+  }
+  // Anything that failed while the phone was offline goes out on the next visit.
+  function flushQueue() {
+    if (!SHEET_ENDPOINT) return;
+    var q = readQueue();
+    if (!q.length) return;
+    writeQueue([]);
+    q.forEach(send);
+  }
+  function sendToSheet() {
+    var payload = leadPayload();
+    if (SHEET_SECRET) payload.secret = SHEET_SECRET;
+    if (!SHEET_ENDPOINT) {
+      console.log('[picapool] SHEET_ENDPOINT is empty, response not sent:', payload);
+      return;
+    }
+    send(JSON.stringify(payload));
+  }
+  // One tap on the link is one row in the Taps sheet, whether or not the person
+  // ever fills the form. Taps against responses is what tells you if a link is
+  // being ignored or the form is losing people. Guarded by sessionStorage so a
+  // refresh or a back button is not counted twice.
+  function pingTap() {
+    if (!SHEET_ENDPOINT) return;
+    var repeat = false;
+    try {
+      if (sessionStorage.getItem(VISIT_KEY)) return;
+      sessionStorage.setItem(VISIT_KEY, '1');
+      repeat = !!localStorage.getItem(SEEN_KEY);
+      localStorage.setItem(SEEN_KEY, '1');
+    } catch (e) { /* private mode, log the tap anyway */ }
+    var payload = {
+      type: 'tap',
+      tappedAt: new Date().toISOString(),
+      source: SOURCE,
+      path: location.pathname,
+      repeat: repeat ? 'yes' : 'no',
+      referrer: document.referrer || '',
+      host: location.hostname || 'local',
+      poolId: POOL_ID,
+    };
+    if (SHEET_SECRET) payload.secret = SHEET_SECRET;
+    send(JSON.stringify(payload));
+  }
 
   // ---------- auto capture ----------
   // Contact details save themselves once both fields are valid, so nobody has to
@@ -150,7 +320,7 @@
     if (!contactReady(state)) return;
     autoTimer = setTimeout(function () {
       autoTimer = null;
-      if (state.screen === 'contact' && contactReady(state)) go('done');
+      if (state.screen === 'contact' && contactReady(state)) enterDone();
     }, AUTO_JOIN_MS);
   }
 
@@ -288,6 +458,21 @@
       '</div>';
   }
 
+  // Optional escape hatch from the shortlist. Somebody who already knows the
+  // exact model, or wants a brand we do not stock, can say so in their own words
+  // and still count towards the pool.
+  function customAskMarkup() {
+    var typed = state.custom.trim().length > 0;
+    return '' +
+      '<div class="custom-ask' + (typed ? ' is-filled' : '') + '">' +
+        '<span class="custom-ask-title">Want a specific model or brand?</span>' +
+        '<span class="custom-ask-sub">Optional. Name it even if it is not listed here and we will count it in.</span>' +
+        '<input type="text" id="field-custom" data-field="custom" class="text-input" maxlength="80" ' +
+          'placeholder="e.g. Lenovo LOQ RTX 4050, or just Dell" value="' + escAttr(state.custom) + '">' +
+        (typed ? '<span class="field-ok">' + checkCircleIcon() + 'Added to your request</span>' : '') +
+      '</div>';
+  }
+
   function picksScreen() {
     var loading = state.loading;
     var list = (state.purpose != null && state.budget != null) ? matches(state.purpose, state.budget) : [];
@@ -314,7 +499,8 @@
           (state.fromDone
             ? '<button class="btn-secondary" data-action="back-to-pool">Back to my pool</button>'
             : '<button class="btn-secondary" data-action="not-sure">Skip, text me picks later</button>') +
-        '</div>';
+        '</div>' +
+        '<div class="custom-ask-wrap">' + customAskMarkup() + '</div>';
     } else if (ready) {
       var cards = list.map(function (l) {
         var on = !!state.cart[l.id];
@@ -340,18 +526,30 @@
       body = '' +
         '<div class="picks-list">' +
           cards +
+          customAskMarkup() +
           (state.fromDone ? '' : '<button class="not-sure-row" data-action="not-sure">Not sure yet, show me options later' + arrowRightIcon() + '</button>') +
         '</div>';
     }
 
     var cartIds = Object.keys(state.cart).filter(function (k) { return state.cart[k]; });
-    var footer = ready ? ('' +
-      '<div class="cart-bar">' +
-        '<span class="cart-count"><span class="cart-badge' + (cartIds.length ? ' has-items' : '') + '">' + cartIds.length + '</span>shortlisted</span>' +
-        (state.fromDone
-          ? '<button class="btn-primary" data-action="back-to-pool">Save to my pool</button>'
-          : '<button class="btn-primary' + (cartIds.length ? '' : ' is-disabled') + '" data-action="go-timeline">Continue</button>') +
-      '</div>') : '';
+    var hasCustom = state.custom.trim().length > 0;
+    var footer = '';
+    if (ready) {
+      footer = '' +
+        '<div class="cart-bar">' +
+          '<span class="cart-count">' +
+            '<span class="cart-badge' + (cartIds.length ? ' has-items' : '') + '">' + cartIds.length + '</span>' +
+            (hasCustom ? 'shortlisted, plus yours' : 'shortlisted') +
+          '</span>' +
+          (state.fromDone
+            ? '<button class="btn-primary" data-action="back-to-pool">Save to my pool</button>'
+            : '<button class="btn-primary' + (cartIds.length || hasCustom ? '' : ' is-disabled') + '" data-action="go-timeline">Continue</button>') +
+        '</div>';
+    } else if (empty && hasCustom && !state.fromDone) {
+      // Nothing matched, but they named a model themselves. That is enough to
+      // carry on, otherwise the empty screen swallows what they just typed.
+      footer = '<div class="footer-bar"><button class="btn-primary" data-action="go-timeline">Continue</button></div>';
+    }
 
     return '' +
       '<div class="screen screen-fixed">' +
@@ -459,8 +657,8 @@
   }
 
   function doneScreen() {
-    var cartIds = Object.keys(state.cart).filter(function (k) { return state.cart[k]; });
-    var cartItems = ALL_LAPTOPS.filter(function (l) { return cartIds.indexOf(l.id) !== -1; });
+    var cartItems = cartLaptops();
+    var custom = state.custom.trim();
     // Anchor the saving to whatever number is struck through on the row, so the card reconciles.
     var savingsN = cartItems.reduce(function (a, l) { return a + ((l.mrp || l.price) - poolPrice(l.price)); }, 0);
     var phoneOk = /^\d{10}$/.test(state.phone);
@@ -484,6 +682,13 @@
           rows +
           '<div class="savings-row"><span class="savings-label">Projected saving vs list price</span><span class="savings-value">' + fmt(savingsN) + '</span></div>' +
         '</div>';
+    } else if (custom) {
+      cartSection = '' +
+        '<div class="no-cart-card">' +
+          '<span class="no-cart-title">Nothing off the shortlist yet</span>' +
+          '<span class="no-cart-sub">We are counting your own request below. Add a listed model too if you want both quoted.</span>' +
+          '<button class="browse-link" data-action="edit-picks">Browse picks now</button>' +
+        '</div>';
     } else {
       cartSection = '' +
         '<div class="no-cart-card">' +
@@ -492,6 +697,16 @@
           '<button class="browse-link" data-action="edit-picks">Browse picks now</button>' +
         '</div>';
     }
+
+    var customSection = custom ? ('' +
+      '<div class="custom-summary">' +
+        '<div class="custom-summary-head">' +
+          '<span class="custom-summary-label">Asked for by name</span>' +
+          '<button class="edit-link" data-action="edit-picks">Edit</button>' +
+        '</div>' +
+        '<div class="custom-summary-value">' + escAttr(custom) + '</div>' +
+        '<div class="custom-summary-note">We check the price on this one and quote it back to you.</div>' +
+      '</div>') : '';
 
     return '' +
       '<div class="screen screen-fixed">' +
@@ -502,6 +717,7 @@
             '<p class="done-sub">We text ' + maskedPhone + ' with pricing updates as the pool fills.</p>' +
           '</div>' +
           cartSection +
+          customSection +
           (cartItems.length > 0
             ? '<button class="add-more-btn" data-action="edit-picks">' + plusIcon() + 'Show interest in more laptops</button>'
             : '') +
@@ -589,7 +805,7 @@
         break;
       }
       case 'not-sure':
-        setState({ cart: {} });
+        setState({ cart: {}, custom: '' });
         go('timeline');
         break;
       case 'bump-band':
@@ -598,7 +814,7 @@
         break;
       case 'go-timeline': {
         var cartIds = Object.keys(state.cart).filter(function (k) { return state.cart[k]; });
-        if (!cartIds.length) return;
+        if (!cartIds.length && !state.custom.trim()) return;
         go('timeline');
         break;
       }
@@ -618,15 +834,14 @@
         break;
       case 'join-pool': {
         clearAutoJoin();
-        if (contactReady(state)) go('done'); else setState({ tried: true });
+        if (contactReady(state)) enterDone(); else setState({ tried: true });
         break;
       }
       case 'edit-picks':
         enterPicks({ fromDone: true });
         break;
       case 'back-to-pool':
-        clearTimeout(pendingTimer);
-        setState({ screen: 'done', fromDone: false });
+        enterDone();
         break;
       case 'restart':
         restart();
@@ -637,6 +852,10 @@
   function onInput(e) {
     var field = e.target.dataset.field;
     if (!field) return;
+    if (field === 'custom') {
+      setState({ custom: e.target.value });
+      return;
+    }
     if (field === 'name') {
       setState({ name: e.target.value });
     } else if (field === 'phone') {
@@ -652,5 +871,7 @@
   phoneEl.addEventListener('click', onClick);
   phoneEl.addEventListener('input', onInput);
 
+  flushQueue();
+  pingTap();
   render();
 })();
