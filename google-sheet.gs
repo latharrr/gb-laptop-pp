@@ -28,6 +28,8 @@
 
 var SHEET_NAME = 'Responses';
 var TAPS_SHEET_NAME = 'Taps';
+var EVENTS_SHEET_NAME = 'Events';
+var FUNNEL_SHEET_NAME = 'Funnel';
 var SHARED_SECRET = '';
 
 // Order here is the column order in the sheet. Adding a key means adding a
@@ -50,6 +52,19 @@ var COLUMNS = [
   { key: 'poolId', label: 'Pool' },
   { key: 'source', label: 'Source' },
   { key: 'host', label: 'Host' }
+];
+
+// One row per step or choice, tied to an anonymous session id. This is what the
+// Funnel sheet reads to work out where people leave. No names or numbers land
+// here, only that somebody reached the contact step.
+var EVENT_COLUMNS = [
+  { key: 'at', label: 'At' },
+  { key: 'session', label: 'Session' },
+  { key: 'source', label: 'Source' },
+  { key: 'event', label: 'Event' },
+  { key: 'detail', label: 'Detail' },
+  { key: 'device', label: 'Device' },
+  { key: 'poolId', label: 'Pool' }
 ];
 
 // One row per tap on a campaign link, filled in even when the person never
@@ -76,6 +91,7 @@ function doPost(e) {
     if (e && e.postData && e.postData.contents) body = JSON.parse(e.postData.contents);
     if (SHARED_SECRET && body.secret !== SHARED_SECRET) return json({ ok: false, error: 'bad secret' });
     if (body.type === 'tap') return recordTap(body);
+    if (body.type === 'events') return recordEvents(body);
 
     var sheet = getSheet();
     var now = new Date();
@@ -102,9 +118,107 @@ function doPost(e) {
 
 function doGet() {
   return ContentService.createTextOutput(
-    'Picapool endpoint is live. Responses go to the "' + SHEET_NAME + '" sheet, ' +
-    'link taps go to "' + TAPS_SHEET_NAME + '".'
+    'Picapool endpoint is live. Responses go to "' + SHEET_NAME + '", link taps to "' +
+    TAPS_SHEET_NAME + '", step by step activity to "' + EVENTS_SHEET_NAME + '", and "' +
+    FUNNEL_SHEET_NAME + '" works out where people drop off.'
   );
+}
+
+// Events arrive in batches, so one setValues beats a stream of appendRow calls.
+function recordEvents(body) {
+  var rows = body.rows;
+  if (!rows || !rows.length) return json({ ok: true, events: 0 });
+  var sheet = getEventSheet();
+  var values = rows.map(function (r) {
+    return EVENT_COLUMNS.map(function (c) {
+      if (c.key === 'at') return r.at ? new Date(r.at) : new Date();
+      return r[c.key] != null ? r[c.key] : '';
+    });
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, values.length, EVENT_COLUMNS.length).setValues(values);
+  ensureFunnelSheet();
+  return json({ ok: true, events: values.length, row: sheet.getLastRow() });
+}
+
+function getEventSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(EVENTS_SHEET_NAME) || ss.insertSheet(EVENTS_SHEET_NAME);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(EVENT_COLUMNS.map(function (c) { return c.label; }));
+    sheet.getRange(1, 1, 1, EVENT_COLUMNS.length).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+// The steps a person passes through, in order. The label is what shows on the
+// Funnel sheet, the screen is what the form logs as step_viewed.
+var FUNNEL_STEPS = [
+  { label: 'Opened the link', screen: 'landing' },
+  { label: 'Chose a use', screen: 'purpose' },
+  { label: 'Chose a budget', screen: 'budget' },
+  { label: 'Saw the picks', screen: 'picks' },
+  { label: 'Chose a week', screen: 'timeline' },
+  { label: 'Chose readiness', screen: 'intent' },
+  { label: 'Reached contact', screen: 'contact' },
+  { label: 'Joined the pool', screen: 'done' }
+];
+
+// Built once, then left alone. Everything on it is a live formula, so it keeps
+// itself current as events arrive. Run rebuildFunnel() to recreate it.
+function ensureFunnelSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss.getSheetByName(FUNNEL_SHEET_NAME)) return;
+  buildFunnelSheet(ss.insertSheet(FUNNEL_SHEET_NAME));
+}
+
+function rebuildFunnel() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var old = ss.getSheetByName(FUNNEL_SHEET_NAME);
+  if (old) ss.deleteSheet(old);
+  buildFunnelSheet(ss.insertSheet(FUNNEL_SHEET_NAME));
+}
+
+function buildFunnelSheet(sheet) {
+  var E = "'" + EVENTS_SHEET_NAME + "'!";
+  sheet.getRange('A1:D1').setValues([['Step', 'People', 'Share of openers', 'Lost here']]).setFontWeight('bold');
+
+  for (var i = 0; i < FUNNEL_STEPS.length; i++) {
+    var row = i + 2;
+    // Distinct sessions that reached this screen at least once.
+    sheet.getRange(row, 1).setValue(FUNNEL_STEPS[i].label);
+    sheet.getRange(row, 2).setFormula(
+      '=IFERROR(COUNTA(UNIQUE(FILTER(' + E + '$B$2:$B,' + E + '$D$2:$D="step_viewed",' +
+      E + '$E$2:$E="' + FUNNEL_STEPS[i].screen + '"))),0)'
+    );
+    sheet.getRange(row, 3).setFormula('=IFERROR($B' + row + '/$B$2,0)');
+    if (i > 0) sheet.getRange(row, 4).setFormula('=IFERROR($B' + (row - 1) + '-$B' + row + ',0)');
+  }
+  sheet.getRange(2, 3, FUNNEL_STEPS.length, 1).setNumberFormat('0%');
+
+  // Demand, which is the number that matters when negotiating. Counted once per
+  // session per laptop, so a person toggling a card on and off counts once.
+  sheet.getRange('F1').setFormula(
+    '=IFERROR(QUERY(' + E + '$D$2:$E,"select Col2, count(Col1) where Col1 = ' + "'laptop_interest'" +
+    ' group by Col2 order by count(Col1) desc label Col2 ' + "'Laptop shortlisted'" +
+    ', count(Col1) ' + "'People'" + '",0),"Nothing yet")'
+  );
+  sheet.getRange('I1').setFormula(
+    '=IFERROR(QUERY(' + E + '$D$2:$E,"select Col2, count(Col1) where Col1 = ' + "'own_model'" +
+    ' group by Col2 order by count(Col1) desc label Col2 ' + "'Asked for by name'" +
+    ', count(Col1) ' + "'People'" + '",0),"Nothing yet")'
+  );
+  sheet.getRange('L1').setFormula(
+    '=IFERROR(QUERY(' + E + '$C$2:$D,"select Col1, count(Col2) where Col2 = ' + "'step_viewed'" +
+    ' group by Col1 order by count(Col2) desc label Col1 ' + "'Link'" +
+    ', count(Col2) ' + "'Steps taken'" + '",0),"Nothing yet")'
+  );
+
+  sheet.getRange('A12').setValue('Everything here recalculates on its own as the Events sheet fills up.');
+  sheet.getRange('A13').setValue('Run rebuildFunnel from the Apps Script editor to recreate this sheet.');
+  sheet.getRange('A12:A13').setFontColor('#888888');
+  sheet.setColumnWidth(1, 170);
+  sheet.setFrozenRows(1);
 }
 
 function recordTap(body) {

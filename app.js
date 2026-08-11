@@ -199,7 +199,9 @@
 
   function setState(patch) {
     var next = typeof patch === 'function' ? patch(state) : patch;
+    var was = state.screen;
     state = Object.assign({}, state, next);
+    if (state.screen !== was) track('step_viewed', state.screen);
     render();
   }
   function go(screen, delay) {
@@ -223,7 +225,15 @@
     clearAutoJoin();
     clearTimeout(pendingTimer);
     setState({ screen: 'done', fromDone: false, leadId: state.leadId || newLeadId() });
+    trackOnce('joined', 'joined_pool');
     sendToSheet();
+    flushEvents();
+  }
+  // Logged on the way out of the picks screen, once per distinct value, so a
+  // typed request counts even if the person never finishes the form.
+  function trackOwnModel() {
+    var own = state.custom.trim();
+    if (own) trackOnce('own:' + own.toLowerCase(), 'own_model', own);
   }
 
   // ---------- sending responses to the sheet ----------
@@ -300,6 +310,66 @@
     writeQueue([]);
     q.forEach(send);
   }
+  // ---------- event log ----------
+  // Stands in for a product analytics tool. Every step and choice is logged
+  // against an anonymous session id, so the Funnel sheet can work out where
+  // people leave. Names and phone numbers are never logged here, only the fact
+  // that somebody reached the contact step and started typing.
+  var SESSION_ID = (function () {
+    try {
+      var id = sessionStorage.getItem('pp_session');
+      if (!id) {
+        id = 's-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+        sessionStorage.setItem('pp_session', id);
+      }
+      return id;
+    } catch (e) { return 's-' + Math.random().toString(36).slice(2, 8); }
+  })();
+  var EVENT_BATCH = 8;
+  var eventBuffer = [];
+  var trackedOnce = {};
+
+  function deviceLabel() {
+    var w = window.innerWidth || 0;
+    return w < 768 ? 'mobile' : w < 1100 ? 'tablet' : 'desktop';
+  }
+  function track(event, detail) {
+    if (!SHEET_ENDPOINT) return;
+    eventBuffer.push({
+      at: new Date().toISOString(),
+      session: SESSION_ID,
+      source: SOURCE,
+      event: event,
+      detail: detail == null ? '' : String(detail).slice(0, 120),
+      device: deviceLabel(),
+      poolId: POOL_ID,
+    });
+    if (eventBuffer.length >= EVENT_BATCH) flushEvents();
+  }
+  // Fires at most once per session, for things like a laptop being shortlisted
+  // twice, which would otherwise inflate the demand count.
+  function trackOnce(key, event, detail) {
+    if (trackedOnce[key]) return;
+    trackedOnce[key] = true;
+    track(event, detail);
+  }
+  // Events go out in batches to keep Apps Script from being hit once per tap.
+  // On the way out of the page sendBeacon is the only thing the browser will
+  // reliably finish, so the last partial batch still lands.
+  function flushEvents(leaving) {
+    if (!SHEET_ENDPOINT || !eventBuffer.length) return;
+    var payload = { type: 'events', rows: eventBuffer.slice() };
+    if (SHEET_SECRET) payload.secret = SHEET_SECRET;
+    eventBuffer.length = 0;
+    var body = JSON.stringify(payload);
+    if (leaving && navigator.sendBeacon) {
+      try {
+        if (navigator.sendBeacon(SHEET_ENDPOINT, new Blob([body], { type: 'text/plain;charset=utf-8' }))) return;
+      } catch (e) { /* fall through to fetch */ }
+    }
+    send(body);
+  }
+
   function sendToSheet() {
     var payload = leadPayload();
     if (SHEET_SECRET) payload.secret = SHEET_SECRET;
@@ -816,35 +886,48 @@
         break;
       case 'pick-purpose':
         setState({ purpose: btn.dataset.purpose });
+        track('chose_use', PLABEL[btn.dataset.purpose] || btn.dataset.purpose);
         go('budget', 240);
         break;
       case 'pick-budget':
         setState(function (st) { return { budget: +btn.dataset.budget, bumped: false, cart: st.fromDone ? st.cart : {} }; });
+        track('chose_budget', BANDS[+btn.dataset.budget]);
         clearTimeout(pendingTimer);
         pendingTimer = setTimeout(function () { enterPicks(); }, 240);
         break;
       case 'toggle-cart': {
         var id = btn.dataset.id;
+        var adding = !state.cart[id];
         setState(function (st) { return { cart: Object.assign({}, st.cart, (function () { var o = {}; o[id] = !st.cart[id]; return o; })()) }; });
+        if (adding) {
+          var picked = ALL_LAPTOPS.filter(function (l) { return l.id === id; })[0];
+          // Once per session per laptop, so toggling on and off does not
+          // inflate the demand count on the Funnel sheet.
+          if (picked) trackOnce('interest:' + id, 'laptop_interest', picked.brand + ' ' + picked.model);
+        }
         break;
       }
       case 'not-sure':
         setState({ cart: {}, custom: '' });
+        track('skipped_picks');
         go('timeline');
         break;
       case 'bump-band':
         setState({ budget: +btn.dataset.band, bumped: true });
+        track('stretched_budget', BANDS[+btn.dataset.band]);
         enterPicks();
         break;
       case 'go-timeline': {
         var cartIds = Object.keys(state.cart).filter(function (k) { return state.cart[k]; });
         if (!cartIds.length && !state.custom.trim()) return;
+        trackOwnModel();
         go('timeline');
         break;
       }
       case 'pick-week': {
         var w = btn.dataset.week;
         setState({ week: w === 'unsure' ? 'unsure' : +w });
+        track('chose_week', w === 'unsure' ? 'Not sure yet' : weekRelative(+w));
         break;
       }
       case 'go-intent': {
@@ -854,6 +937,7 @@
       }
       case 'pick-intent':
         setState({ intent: btn.dataset.intent });
+        track('chose_readiness', intentTitle(btn.dataset.intent));
         go('contact', 240);
         break;
       case 'join-pool': {
@@ -865,9 +949,11 @@
         enterPicks({ fromDone: true });
         break;
       case 'back-to-pool':
+        trackOwnModel();
         enterDone();
         break;
       case 'restart':
+        track('restarted');
         restart();
         break;
     }
@@ -880,6 +966,8 @@
       setState({ custom: e.target.value });
       return;
     }
+    // Only that they started, never what they typed.
+    trackOnce('contact', 'started_contact');
     if (field === 'name') {
       setState({ name: e.target.value });
     } else if (field === 'phone') {
@@ -894,8 +982,14 @@
 
   phoneEl.addEventListener('click', onClick);
   phoneEl.addEventListener('input', onInput);
+  // Whatever is still buffered when the tab is closed or backgrounded.
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') flushEvents(true);
+  });
+  window.addEventListener('pagehide', function () { flushEvents(true); });
 
   flushQueue();
   pingTap();
+  track('step_viewed', 'landing');
   render();
 })();
