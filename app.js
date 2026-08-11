@@ -3,8 +3,6 @@
 
   // ---------- pool math (hardcoded defaults, mirrors design defaults) ----------
   var DISC = 8; // % discount
-  var TARGET = 40; // seat target
-  var FILLED = Math.min(23, TARGET - 1); // seats filled
   var POOL_ID = 'AUG-LPT-07';
 
   var BANDS = ['Under ₹50k', '₹50k–70k', '₹70k–90k', 'Above ₹90k'];
@@ -46,7 +44,7 @@
     { key: 'price', title: 'Will buy if the price gets good enough', desc: 'The discount decides it' },
     { key: 'look', title: 'Still comparing, keep me posted', desc: 'Watching pools, no promises' },
   ];
-  var CHIPS = ['This week', 'In 2 weeks', 'This month', 'Not sure yet'];
+  var WEEK_COUNT = 6;
   var STEPS = ['purpose', 'budget', 'picks', 'timeline', 'intent', 'contact'];
   var ORDER = ['landing', 'purpose', 'budget', 'picks', 'timeline', 'intent', 'contact', 'done'];
 
@@ -65,10 +63,33 @@
     return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  // ---------- buying windows (week bands, not exact dates) ----------
+  function buildWeeks() {
+    var today = new Date();
+    var out = [];
+    for (var i = 0; i < WEEK_COUNT; i++) {
+      var s = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i * 7);
+      var e = new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6);
+      out.push({ i: i, start: s, end: e });
+    }
+    return out;
+  }
+  function weekRange(w) {
+    var sm = w.start.toLocaleString('en', { month: 'short' });
+    var em = w.end.toLocaleString('en', { month: 'short' });
+    if (sm === em) return w.start.getDate() + '–' + w.end.getDate() + ' ' + sm;
+    return w.start.getDate() + ' ' + sm + ' – ' + w.end.getDate() + ' ' + em;
+  }
+  function weekRelative(i) {
+    if (i === 0) return 'This week';
+    if (i === 1) return 'Next week';
+    return 'In ' + (i + 1) + ' weeks';
+  }
+
   // ---------- state ----------
   var initialState = {
     screen: 'landing', purpose: null, budget: null, loading: false, bumped: false,
-    cart: {}, monthIdx: 0, day: null, chip: null, intent: null,
+    cart: {}, week: null, intent: null,
     name: '', phone: '', otp: ['', '', '', ''], tried: false,
   };
   var state = Object.assign({}, initialState);
@@ -164,8 +185,8 @@
         '<div class="landing-top">' + logoIcon() + '<span class="landing-logo-text">Picapool</span></div>' +
         '<div class="landing-mid">' +
           landingHeroSvg() +
-          '<h1 class="landing-title">More freshers, lower price</h1>' +
-          '<p class="landing-sub">Join a campus pool and the price drops as more freshers pick the same laptop.</p>' +
+          '<h1 class="landing-title">Buy together, pay less</h1>' +
+          '<p class="landing-sub">Join your campus pool. Every fresher who joins drops the price on the same laptop — same model, same warranty.</p>' +
           '<div class="live-chip-row"><div class="live-chip"><span class="live-dot"></span><span class="live-text">214 freshers pooling right now</span></div></div>' +
         '</div>' +
         '<div class="landing-footer"><button class="btn-primary" data-action="go-start">Find my laptop</button></div>' +
@@ -249,8 +270,8 @@
               '<div class="laptop-foot">' +
                 '<span class="laptop-price">' + fmt(l.price) + '</span>' +
                 (on
-                  ? '<button class="btn-added" data-action="toggle-cart" data-id="' + l.id + '">' + checkPlainIcon() + 'Added</button>'
-                  : '<button class="btn-add" data-action="toggle-cart" data-id="' + l.id + '">Add to cart</button>') +
+                  ? '<button class="btn-added" data-action="toggle-cart" data-id="' + l.id + '">' + checkPlainIcon() + 'Interested</button>'
+                  : '<button class="btn-add" data-action="toggle-cart" data-id="' + l.id + '">I\'m interested</button>') +
               '</div>' +
             '</div>' +
           '</div>';
@@ -265,7 +286,7 @@
     var cartIds = Object.keys(state.cart).filter(function (k) { return state.cart[k]; });
     var footer = ready ? ('' +
       '<div class="cart-bar">' +
-        '<span class="cart-count"><span class="cart-badge' + (cartIds.length ? ' has-items' : '') + '">' + cartIds.length + '</span>selected</span>' +
+        '<span class="cart-count"><span class="cart-badge' + (cartIds.length ? ' has-items' : '') + '">' + cartIds.length + '</span>shortlisted</span>' +
         '<button class="btn-primary' + (cartIds.length ? '' : ' is-disabled') + '" data-action="go-timeline">Continue</button>' +
       '</div>') : '';
 
@@ -274,7 +295,7 @@
         '<div class="screen-inner-scroll">' +
           '<div class="page-head">' +
             '<h1 class="page-title">' + title + '</h1>' +
-            (ready ? '<p class="picks-hint">Tap to add. Pick as many as you like.</p>' : '') +
+            (ready ? '<p class="picks-hint">Mark the ones you would actually buy. Pick as many as you like.</p>' : '') +
           '</div>' +
           body +
         '</div>' +
@@ -283,45 +304,32 @@
   }
 
   function timelineScreen() {
-    var today = new Date();
-    var months = [0, 1, 2, 3].map(function (i) { return new Date(today.getFullYear(), today.getMonth() + i, 1); });
-    var monthTabs = months.map(function (m, i) {
-      var active = state.monthIdx === i;
-      var label = m.toLocaleString('en', { month: 'short' }) + (i === 0 ? ' ' + m.getFullYear() : '');
-      return '<button class="month-tab' + (active ? ' is-active' : '') + '" data-action="pick-month" data-month="' + i + '">' + label + '<span class="month-tab-bar"></span></button>';
+    var weeks = buildWeeks();
+    var cards = weeks.map(function (w) {
+      var sel = state.week === w.i;
+      return '' +
+        '<button class="week-card' + (sel ? ' is-selected' : '') + '" data-action="pick-week" data-week="' + w.i + '">' +
+          '<span class="week-range">' + weekRange(w) + '</span>' +
+          '<span class="week-rel">' + weekRelative(w.i) + '</span>' +
+        '</button>';
     }).join('');
 
-    var mm = months[state.monthIdx];
-    var startD = state.monthIdx === 0 ? today.getDate() : 1;
-    var endD = new Date(mm.getFullYear(), mm.getMonth() + 1, 0).getDate();
-    var dayPills = '';
-    for (var d = startD; d <= endD; d++) {
-      var dt = new Date(mm.getFullYear(), mm.getMonth(), d);
-      var on = state.day && state.day.m === state.monthIdx && state.day.d === d;
-      var dow = dt.toLocaleString('en', { weekday: 'short' }).slice(0, 3);
-      dayPills += '<button class="day-pill' + (on ? ' is-selected' : '') + '" data-action="pick-day" data-month="' + state.monthIdx + '" data-day="' + d + '"><span class="day-dow">' + dow + '</span><span class="day-num">' + d + '</span></button>';
-    }
-
-    var chips = CHIPS.map(function (label) {
-      var sel = state.chip === label;
-      return '<button class="chip' + (sel ? ' is-selected' : '') + '" data-action="pick-chip" data-chip="' + escAttr(label) + '">' + label + '</button>';
-    }).join('');
-
-    var hasWhen = !!(state.chip || state.day);
-    var dayStr = state.day ? new Date(mm.getFullYear(), months[state.day.m].getMonth(), state.day.d).toLocaleString('en', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
-    var dateNote = state.day ? 'Buying around ' + dayStr + '. We match your pool to that window.'
-      : state.chip ? 'We match you with freshers buying around the same time.'
-      : 'Pick a rough window. You can change it anytime.';
+    var unsure = state.week === 'unsure';
+    var hasWhen = state.week !== null;
+    var note = unsure ? 'No rush. We keep you posted as pools fill up.'
+      : typeof state.week === 'number' ? 'Buying around ' + weekRange(weeks[state.week]) + '. We match you with freshers buying in that same week.'
+      : 'A rough week is enough. You can change it anytime.';
 
     return '' +
       '<div class="screen screen-fixed">' +
         '<div class="screen-inner-scroll">' +
-          '<div class="page-head"><h1 class="page-title">When are you buying?</h1></div>' +
-          '<div class="chip-row">' + chips + '</div>' +
-          '<div class="divider-row"><span class="divider-line"></span><span class="divider-label">or pick a date</span><span class="divider-line"></span></div>' +
-          '<div class="month-tabs">' + monthTabs + '</div>' +
-          '<div class="day-strip">' + dayPills + '</div>' +
-          '<p class="date-note">' + dateNote + '</p>' +
+          '<div class="page-head">' +
+            '<h1 class="page-title">Which week are you buying in?</h1>' +
+            '<p class="page-sub">Pick the window that feels closest. Nothing is locked in.</p>' +
+          '</div>' +
+          '<div class="week-grid">' + cards + '</div>' +
+          '<button class="week-unsure' + (unsure ? ' is-selected' : '') + '" data-action="pick-week" data-week="unsure">Not sure yet</button>' +
+          '<p class="date-note">' + note + '</p>' +
         '</div>' +
         '<div class="footer-bar"><button class="btn-primary' + (hasWhen ? '' : ' is-disabled') + '" data-action="go-intent">Continue</button></div>' +
       '</div>';
@@ -357,18 +365,21 @@
     return '' +
       '<div class="screen screen-fixed">' +
         '<div class="screen-inner-scroll">' +
-          '<div class="page-head"><h1 class="page-title">Where do pool updates go?</h1></div>' +
+          '<div class="page-head">' +
+            '<h1 class="page-title">Where should we send your pool price?</h1>' +
+            '<p class="page-sub">We text you the moment your pool unlocks a lower price. That is the only reason we ask.</p>' +
+          '</div>' +
           '<div class="field-list">' +
             '<label class="field-label">' +
-              '<span class="field-label-text">Name</span>' +
-              '<input type="text" autocomplete="name" placeholder="Your name" id="field-name" data-field="name" class="text-input' + (nameErr ? ' has-error' : '') + '" value="' + escAttr(state.name) + '">' +
-              (nameErr ? '<span class="field-error">Add your name so poolmates know you</span>' : '') +
+              '<span class="field-label-text">Your name</span>' +
+              '<input type="text" autocomplete="name" placeholder="First name is fine" id="field-name" data-field="name" class="text-input' + (nameErr ? ' has-error' : '') + '" value="' + escAttr(state.name) + '">' +
+              (nameErr ? '<span class="field-error">We need a name to hold your seat</span>' : '') +
             '</label>' +
             '<div class="phone-field">' +
-              '<span class="field-label-text">Phone</span>' +
+              '<span class="field-label-text">Mobile number</span>' +
               '<div class="phone-row">' +
                 '<span class="phone-prefix">+91' + lockIcon() + '</span>' +
-                '<input type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="10 digit number" id="field-phone" data-field="phone" class="phone-input' + (phoneErr ? ' has-error' : '') + '" value="' + escAttr(state.phone) + '">' +
+                '<input type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="10 digit mobile number" id="field-phone" data-field="phone" class="phone-input' + (phoneErr ? ' has-error' : '') + '" value="' + escAttr(state.phone) + '">' +
               '</div>' +
               (phoneErr ? '<span class="field-error">Enter the 10 digit number after +91</span>' : '') +
               (phoneOk ? '<span class="field-ok">' + checkCircleIcon() + 'Looks good</span>' : '') +
@@ -376,7 +387,7 @@
             (phoneOk ? ('' +
               '<div class="otp-box">' +
                 '<span class="otp-title">Verify now, or later. Your call.</span>' +
-                '<span class="otp-note">Code sent to +91 ' + escAttr(state.phone) + '. Skip it and verify when the pool fills.</span>' +
+                '<span class="otp-note">Code sent to +91 ' + escAttr(state.phone) + '. You can skip this and verify when your pool fills.</span>' +
                 '<div class="otp-inputs">' + otpBoxes + '</div>' +
                 (otpDone ? '<span class="otp-verified">' + checkCircleIcon() + 'Number verified</span>' : '') +
               '</div>') : '') +
@@ -384,7 +395,7 @@
         '</div>' +
         '<div class="contact-footer">' +
           '<button class="btn-primary" data-action="join-pool">Join the pool</button>' +
-          '<p class="contact-footnote">We text you when your pool fills. Your number is used for pool updates only.</p>' +
+          '<p class="contact-footnote">Pool updates only. No spam, no sales calls, and we never share your number.</p>' +
         '</div>' +
       '</div>';
   }
@@ -393,10 +404,9 @@
     var cartIds = Object.keys(state.cart).filter(function (k) { return state.cart[k]; });
     var cartItems = ALL_LAPTOPS.filter(function (l) { return cartIds.indexOf(l.id) !== -1; });
     var savingsN = cartItems.reduce(function (a, l) { return a + (l.price - poolPrice(l.price)); }, 0);
-    var seatsPct = Math.round((FILLED / TARGET) * 100);
     var phoneOk = /^\d{10}$/.test(state.phone);
     var maskedPhone = phoneOk ? '+91 ' + state.phone.slice(0, 2) + '••••••' + state.phone.slice(8) : 'you';
-    var waMsg = 'Freshers laptop pool on Picapool — price drops as more of us join. I am in at #' + FILLED + '. Join pool ' + POOL_ID;
+    var waMsg = 'Freshers laptop pool on Picapool — the price drops as more of us join. Join pool ' + POOL_ID;
     var waHref = 'https://wa.me/?text=' + encodeURIComponent(waMsg);
 
     var cartSection;
@@ -431,14 +441,6 @@
             doneHeroSvg() +
             '<h1 class="done-title">You are in the pool</h1>' +
             '<p class="done-sub">We text ' + maskedPhone + ' when it fills.</p>' +
-          '</div>' +
-          '<div class="stat-row">' +
-            '<div class="stat-card"><span class="stat-label">Your spot</span><span class="stat-value">#' + FILLED + '</span><span class="stat-note">Pool ' + POOL_ID + '</span></div>' +
-            '<div class="stat-card wide">' +
-              '<div class="stat-head-row"><span class="stat-label">Seats filled</span><span class="stat-seats-left">' + (TARGET - FILLED) + ' left</span></div>' +
-              '<span class="stat-value">' + FILLED + ' of ' + TARGET + '</span>' +
-              '<div class="stat-progress-track"><div class="stat-progress-fill" style="width:' + seatsPct + '%"></div></div>' +
-            '</div>' +
           '</div>' +
           cartSection +
           '<p class="done-footnote">More freshers joining means a lower price.</p>' +
@@ -538,18 +540,13 @@
         go('timeline');
         break;
       }
-      case 'pick-chip':
-        setState({ chip: btn.dataset.chip, day: null });
+      case 'pick-week': {
+        var w = btn.dataset.week;
+        setState({ week: w === 'unsure' ? 'unsure' : +w });
         break;
-      case 'pick-month':
-        setState({ monthIdx: +btn.dataset.month });
-        break;
-      case 'pick-day':
-        setState({ day: { m: +btn.dataset.month, d: +btn.dataset.day }, chip: null });
-        break;
+      }
       case 'go-intent': {
-        var hasWhen = !!(state.chip || state.day);
-        if (!hasWhen) return;
+        if (state.week === null) return;
         go('intent');
         break;
       }
