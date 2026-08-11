@@ -10,31 +10,48 @@
   var PSHORT = { game: 'gaming', code: 'coding', bal: 'everyday use', des: 'design work' };
 
   var K = '#1C1C1E', G = '#3A3A3C';
+
+  // ---------- catalog ----------
+  // price = typical street price in India, used for budget-band matching and shown on the card.
+  // mrp   = official list price, only set where a source was found. Shown struck through.
+  // img   = product photo from the brand's own CDN. Falls back to the illustration if it fails.
+  // Checked Aug 2026 against Apple India, ASUS India, Flipkart listings and current India
+  // buying guides. Street prices move every sale, so recheck before each campaign.
+  var PRICES_CHECKED = 'Aug 2026';
+  function asusImg(id) { return 'https://dlcdnwebimgs.asus.com/gain/' + id + '/w400'; }
+  var APPLE_IMG = 'https://www.apple.com/v/';
+  var IMG_MBA = APPLE_IMG + 'macbook-air/z/images/overview/design/color/design_side_midnight__flnancj2vlme_large.jpg';
+  var IMG_MBP = APPLE_IMG + 'macbook-pro/ax/images/overview/product-viewer/pv_colors_spaceblack__dwfpyrbaf4cy_large.jpg';
+
   var CATALOG = {
     game: [
-      { id: 'g1', band: 1, brand: 'HP', model: 'Victus 15', c: ['RTX 2050', '16GB RAM', '512GB SSD'], why: 'Cheapest real GPU. Valorant at 144 fps.', price: 61490, lid: K },
-      { id: 'g2', band: 2, brand: 'Lenovo', model: 'LOQ 15', c: ['RTX 4050', '16GB RAM', '144Hz'], why: 'Best fps per rupee right now.', price: 79990, lid: G },
-      { id: 'g3', band: 2, brand: 'ASUS', model: 'TUF Gaming F15', c: ['RTX 4050', '16GB RAM', 'MUX switch'], why: 'Tank build, survives hostel life.', price: 83990, lid: K },
-      { id: 'g4', band: 3, brand: 'Acer', model: 'Nitro V16', c: ['RTX 4060', '16GB RAM', '165Hz'], why: 'Desktop-class 1080p gaming.', price: 102990, lid: G },
+      { id: 'g1', band: 1, brand: 'ASUS', model: 'TUF Gaming A15', c: ['RTX 3050', 'Ryzen 7 7435HS', '16GB DDR5'], why: 'Valorant past 200 fps, RAM upgradable later.', price: 64990, lid: K },
+      { id: 'g2', band: 2, brand: 'Acer', model: 'Nitro V 15', c: ['RTX 4050', 'Ryzen 7 7735HS', '16GB RAM'], why: 'Cheapest real RTX 4050 on the market.', price: 81990, mrp: 106999, lid: G },
+      { id: 'g3', band: 2, brand: 'ASUS', model: 'Gaming V16', c: ['RTX 5050', 'Core 5 210H', '144Hz'], why: 'Cheapest way into the RTX 50 series.', price: 84990, lid: K },
+      { id: 'g4', band: 3, brand: 'HP', model: 'Victus 15', c: ['RTX 4050', 'Ryzen 7 7445H', '16GB RAM'], why: 'Steady 1080p in every AAA title.', price: 93990, mrp: 95746, lid: G },
+      { id: 'g5', band: 3, brand: 'ASUS', model: 'TUF Gaming F16', c: ['RTX 5050', 'i5-13450HX', '165Hz'], why: 'MIL-STD build, survives hostel life.', price: 124990, lid: K, img: asusImg('8c753484-c6f3-4780-a593-d54acbf50676') },
     ],
     code: [
-      { id: 'c1', band: 0, brand: 'Lenovo', model: 'IdeaPad Slim 3', c: ['Ryzen 5 7530U', '16GB RAM', '512GB SSD'], why: 'Handles VS Code, light Docker.', price: 46990, lid: G },
-      { id: 'c2', band: 1, brand: 'ASUS', model: 'Vivobook 15', c: ['i5-13500H', '16GB RAM', '512GB SSD'], why: 'H-series chip, fast compiles.', price: 57990, lid: K },
-      { id: 'c3', band: 1, brand: 'HP', model: 'Pavilion 14', c: ['Ryzen 7 7730U', '16GB RAM', 'Backlit KB'], why: 'Quiet, great keyboard for long code.', price: 64990, lid: G },
-      { id: 'c4', band: 2, brand: 'Apple', model: 'MacBook Air M2', c: ['M2', '16GB RAM', '18h battery'], why: 'Silent, Unix shell, campus favourite.', price: 78990, lid: K },
-      { id: 'c5', band: 3, brand: 'Apple', model: 'MacBook Air M3', c: ['M3', '16GB RAM', '512GB SSD'], why: 'Flies through big builds.', price: 108990, lid: G },
+      { id: 'c1', band: 0, brand: 'Lenovo', model: 'IdeaPad Slim 3', c: ['Ryzen 5', '16GB RAM', '512GB SSD'], why: 'Handles VS Code and light Docker.', price: 49990, lid: G },
+      { id: 'c2', band: 1, brand: 'ASUS', model: 'Vivobook 15', c: ['i5-1335U', '16GB RAM', '512GB SSD'], why: 'Cheapest 16GB machine worth owning.', price: 55990, lid: K },
+      { id: 'c3', band: 2, brand: 'Lenovo', model: 'Yoga Slim 7', c: ['Core Ultra 5 125H', '16GB RAM', '2.8K OLED'], why: '1.3kg, quiet, real screen for long days.', price: 84990, lid: G },
+      { id: 'c4', band: 3, brand: 'Apple', model: 'MacBook Air M5', c: ['M5', '16GB RAM', '512GB SSD'], why: 'Silent, Unix shell, campus favourite.', price: 113890, mrp: 119900, lid: K, img: IMG_MBA },
+      { id: 'c5', band: 3, brand: 'Apple', model: 'MacBook Pro 14 M5', c: ['M5', '16GB RAM', 'XDR display'], why: 'Flies through the longest builds.', price: 169900, mrp: 169900, lid: G, img: IMG_MBP },
     ],
     bal: [
-      { id: 'b1', band: 0, brand: 'Acer', model: 'Aspire Lite', c: ['Ryzen 5', '16GB RAM', '512GB SSD'], why: 'Everything a fresher needs, nothing extra.', price: 37990, lid: G },
-      { id: 'b2', band: 0, brand: 'HP', model: '15s', c: ['i5-1235U', '16GB RAM', 'FHD'], why: 'Safe, serviceable everywhere.', price: 44990, lid: K },
-      { id: 'b3', band: 1, brand: 'ASUS', model: 'Vivobook 16', c: ['Ryzen 7', '16GB RAM', '16in screen'], why: 'Big screen, still light.', price: 55990, lid: G },
-      { id: 'b4', band: 2, brand: 'Apple', model: 'MacBook Air M2', c: ['M2', '16GB RAM', '18h battery'], why: 'Lasts all four years.', price: 74990, lid: K },
+      { id: 'b1', band: 0, brand: 'Acer', model: 'Aspire Lite', c: ['Ryzen 5', '16GB RAM', '512GB SSD'], why: 'Everything a fresher needs, nothing extra.', price: 42990, lid: G },
+      { id: 'b2', band: 0, brand: 'HP', model: '15s', c: ['i5-1335U', '16GB RAM', '512GB SSD'], why: 'Safe, serviceable in every small town.', price: 45990, lid: K },
+      { id: 'b3', band: 0, brand: 'Motorola', model: 'Book 60', c: ['Core i5', '16GB RAM', 'OLED 120Hz'], why: 'Only OLED screen under ₹50k.', price: 49999, lid: G },
+      { id: 'b4', band: 1, brand: 'ASUS', model: 'Vivobook 16', c: ['Ryzen 7', '16GB RAM', '16in screen'], why: 'Big screen, still light enough to carry.', price: 55990, lid: G, img: asusImg('e7bccfbd-9a96-4922-ad06-1814a770579a') },
+      { id: 'b5', band: 2, brand: 'ASUS', model: 'Zenbook 14 OLED', c: ['Core Ultra 5', '16GB RAM', 'OLED'], why: 'Metal build, all-day battery.', price: 84990, lid: K },
+      { id: 'b6', band: 3, brand: 'Dell', model: '14 Plus 2-in-1', c: ['Ryzen AI 7 350', '16GB RAM', 'Touch'], why: 'Folds flat for notes in class.', price: 98990, lid: G },
+      { id: 'b7', band: 3, brand: 'Apple', model: 'MacBook Air M5', c: ['M5', '16GB RAM', '512GB SSD'], why: 'Lasts all four years.', price: 113890, mrp: 119900, lid: K, img: IMG_MBA },
     ],
     des: [
       { id: 'd1', band: 1, brand: 'Lenovo', model: 'IdeaPad Slim 5 OLED', c: ['OLED 2.8K', 'Ryzen 7', '16GB RAM'], why: '100% DCI-P3 colour on a budget.', price: 61990, lid: G },
-      { id: 'd2', band: 2, brand: 'ASUS', model: 'Vivobook Pro 15 OLED', c: ['RTX 3050', 'OLED', '16GB RAM'], why: 'OLED plus CUDA for Premiere.', price: 82990, lid: K },
-      { id: 'd3', band: 3, brand: 'Apple', model: 'MacBook Air M3', c: ['M3', '16GB RAM', 'P3 display'], why: 'Final Cut, colour-true screen.', price: 114990, lid: G },
-      { id: 'd4', band: 3, brand: 'HP', model: 'Omen 16', c: ['RTX 4060', '16GB RAM', 'QHD 240Hz'], why: 'Heavy 3D and render rigs.', price: 119990, lid: K },
+      { id: 'd2', band: 2, brand: 'ASUS', model: 'Vivobook S14 OLED', c: ['Core Ultra 5', '16GB RAM', 'OLED'], why: '1.4kg with a colour-true panel.', price: 84990, lid: K },
+      { id: 'd3', band: 3, brand: 'HP', model: 'Omen 16', c: ['RTX 5060', '16GB RAM', 'QHD 240Hz'], why: 'Heavy 3D and render rigs.', price: 119990, lid: G },
+      { id: 'd4', band: 3, brand: 'Apple', model: 'MacBook Pro 14 M5', c: ['M5', '16GB RAM', 'XDR display'], why: 'Final Cut, colour-true screen.', price: 169900, mrp: 169900, lid: K, img: IMG_MBP },
     ],
   };
   var ALL_LAPTOPS = [].concat(CATALOG.game, CATALOG.code, CATALOG.bal, CATALOG.des);
@@ -89,7 +106,7 @@
   // ---------- state ----------
   var initialState = {
     screen: 'landing', purpose: null, budget: null, loading: false, bumped: false,
-    cart: {}, week: null, intent: null,
+    cart: {}, week: null, intent: null, fromDone: false,
     name: '', phone: '', otp: ['', '', '', ''], tried: false,
   };
   var state = Object.assign({}, initialState);
@@ -107,9 +124,9 @@
     if (delay) { pendingTimer = setTimeout(function () { setState({ screen: screen }); }, delay); return; }
     setState({ screen: screen });
   }
-  function enterPicks() {
+  function enterPicks(extra) {
     clearTimeout(pendingTimer);
-    setState({ screen: 'picks', loading: true });
+    setState(Object.assign({ screen: 'picks', loading: true }, extra || {}));
     pendingTimer = setTimeout(function () { setState({ loading: false }); }, 900);
   }
   function restart() {
@@ -147,11 +164,26 @@
   function laptopIconSmall(lid) {
     return '<svg width="32" height="23" viewBox="0 0 64 46"><rect x="10" y="2" width="44" height="29" rx="3" fill="' + lid + '"></rect><rect x="14" y="6" width="36" height="21" rx="1.5" fill="#FFFFFF"></rect><path d="M 4 33 L 60 33 L 56 40 C 55.4 41.2 54.2 42 52.8 42 L 11.2 42 C 9.8 42 8.6 41.2 8 40 Z" fill="#E1E1E3"></path></svg>';
   }
+  // Photo sits on top of the illustration. If it 404s or gets hotlink blocked it
+  // removes itself and the illustration underneath shows instead.
+  function photoLayer(l, alt) {
+    if (!l.img) return '';
+    return '<img class="laptop-photo" src="' + escAttr(l.img) + '" alt="' + escAttr(alt ? l.brand + ' ' + l.model : '') + '" onerror="this.remove()">';
+  }
+  function laptopThumbLarge(l) {
+    return '<div class="laptop-thumb">' + laptopIconLarge(l.lid) + photoLayer(l, true) + '</div>';
+  }
+  function laptopThumbSmall(l) {
+    return '<div class="cart-summary-thumb">' + laptopIconSmall(l.lid) + photoLayer(l, false) + '</div>';
+  }
   function checkPlainIcon() {
     return '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M 2 6.5 L 4.8 9.2 L 10 3.4" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
   }
   function checkCircleIcon() {
     return '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5.4" fill="#34C759"></circle><path d="M 3.4 6.2 L 5.2 8 L 8.6 4.4" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+  }
+  function plusIcon() {
+    return '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2.5 L7 11.5 M2.5 7 L11.5 7" stroke="#F03506" stroke-width="2" stroke-linecap="round"></path></svg>';
   }
   function arrowRightIcon() {
     return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 5.5 L15.5 12 L9 18.5" stroke="#72777B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
@@ -255,20 +287,25 @@
           '<h2 class="empty-title">No solid ' + PSHORT[state.purpose || 'bal'] + ' picks ' + BANDP[bandIdx] + '</h2>' +
           '<p class="empty-sub">Stretch the budget one band up, or skip and we text you matched picks.</p>' +
           '<button class="btn-primary small" data-action="bump-band" data-band="' + nextBand + '">Show ' + BANDS[nextBand] + ' picks instead</button>' +
-          '<button class="btn-secondary" data-action="not-sure">Skip, text me picks later</button>' +
+          (state.fromDone
+            ? '<button class="btn-secondary" data-action="back-to-pool">Back to my pool</button>'
+            : '<button class="btn-secondary" data-action="not-sure">Skip, text me picks later</button>') +
         '</div>';
     } else if (ready) {
       var cards = list.map(function (l) {
         var on = !!state.cart[l.id];
         return '' +
           '<div class="laptop-card' + (on ? ' is-added' : '') + '">' +
-            '<div class="laptop-thumb">' + laptopIconLarge(l.lid) + '</div>' +
+            laptopThumbLarge(l) +
             '<div class="laptop-body">' +
               '<div><div class="laptop-brand">' + l.brand + '</div><div class="laptop-model">' + l.model + '</div></div>' +
               '<div class="laptop-specs"><span class="spec-pill">' + l.c[0] + '</span><span class="spec-pill">' + l.c[1] + '</span><span class="spec-pill">' + l.c[2] + '</span></div>' +
               '<div class="laptop-why">' + l.why + '</div>' +
               '<div class="laptop-foot">' +
-                '<span class="laptop-price">' + fmt(l.price) + '</span>' +
+                '<span class="laptop-price-col">' +
+                  '<span class="laptop-price">' + fmt(l.price) + '</span>' +
+                  (l.mrp && l.mrp > l.price ? '<s class="laptop-mrp">' + fmt(l.mrp) + '</s>' : '') +
+                '</span>' +
                 (on
                   ? '<button class="btn-added" data-action="toggle-cart" data-id="' + l.id + '">' + checkPlainIcon() + 'Interested</button>'
                   : '<button class="btn-add" data-action="toggle-cart" data-id="' + l.id + '">I\'m interested</button>') +
@@ -279,7 +316,7 @@
       body = '' +
         '<div class="picks-list">' +
           cards +
-          '<button class="not-sure-row" data-action="not-sure">Not sure yet, show me options later' + arrowRightIcon() + '</button>' +
+          (state.fromDone ? '' : '<button class="not-sure-row" data-action="not-sure">Not sure yet, show me options later' + arrowRightIcon() + '</button>') +
         '</div>';
     }
 
@@ -287,7 +324,9 @@
     var footer = ready ? ('' +
       '<div class="cart-bar">' +
         '<span class="cart-count"><span class="cart-badge' + (cartIds.length ? ' has-items' : '') + '">' + cartIds.length + '</span>shortlisted</span>' +
-        '<button class="btn-primary' + (cartIds.length ? '' : ' is-disabled') + '" data-action="go-timeline">Continue</button>' +
+        (state.fromDone
+          ? '<button class="btn-primary" data-action="back-to-pool">Save to my pool</button>'
+          : '<button class="btn-primary' + (cartIds.length ? '' : ' is-disabled') + '" data-action="go-timeline">Continue</button>') +
       '</div>') : '';
 
     return '' +
@@ -295,7 +334,7 @@
         '<div class="screen-inner-scroll">' +
           '<div class="page-head">' +
             '<h1 class="page-title">' + title + '</h1>' +
-            (ready ? '<p class="picks-hint">Mark the ones you would actually buy. Pick as many as you like.</p>' : '') +
+            (ready ? '<p class="picks-hint">Mark the ones you would actually buy. Pick as many as you like.</p><p class="price-note">Prices checked ' + PRICES_CHECKED + '. They move with every sale.</p>' : '') +
           '</div>' +
           body +
         '</div>' +
@@ -403,7 +442,8 @@
   function doneScreen() {
     var cartIds = Object.keys(state.cart).filter(function (k) { return state.cart[k]; });
     var cartItems = ALL_LAPTOPS.filter(function (l) { return cartIds.indexOf(l.id) !== -1; });
-    var savingsN = cartItems.reduce(function (a, l) { return a + (l.price - poolPrice(l.price)); }, 0);
+    // Anchor the saving to whatever number is struck through on the row, so the card reconciles.
+    var savingsN = cartItems.reduce(function (a, l) { return a + ((l.mrp || l.price) - poolPrice(l.price)); }, 0);
     var phoneOk = /^\d{10}$/.test(state.phone);
     var maskedPhone = phoneOk ? '+91 ' + state.phone.slice(0, 2) + '••••••' + state.phone.slice(8) : 'you';
     var waMsg = 'Freshers laptop pool on Picapool. The price drops as more of us join. Join pool ' + POOL_ID;
@@ -414,8 +454,8 @@
       var rows = cartItems.map(function (l) {
         return '' +
           '<div class="cart-summary-row">' +
-            '<div class="cart-summary-thumb">' + laptopIconSmall(l.lid) + '</div>' +
-            '<div class="cart-summary-body"><div class="cart-summary-name">' + l.brand + ' ' + l.model + '</div><div class="cart-summary-market"><s>' + fmt(l.price) + '</s> market</div></div>' +
+            laptopThumbSmall(l) +
+            '<div class="cart-summary-body"><div class="cart-summary-name">' + l.brand + ' ' + l.model + '</div><div class="cart-summary-market"><s>' + fmt(l.mrp || l.price) + '</s> ' + (l.mrp ? 'list price' : 'market') + '</div></div>' +
             '<div class="cart-summary-price"><div class="cart-summary-pool">' + fmt(poolPrice(l.price)) + '</div><div class="cart-summary-pool-label">pool price</div></div>' +
           '</div>';
       }).join('');
@@ -423,7 +463,7 @@
         '<div class="cart-summary">' +
           '<div class="cart-summary-head"><span class="cart-summary-title">Your laptops</span><button class="edit-link" data-action="edit-picks">Edit</button></div>' +
           rows +
-          '<div class="savings-row"><span class="savings-label">Projected saving when the pool fills</span><span class="savings-value">' + fmt(savingsN) + '</span></div>' +
+          '<div class="savings-row"><span class="savings-label">Projected saving vs list price</span><span class="savings-value">' + fmt(savingsN) + '</span></div>' +
         '</div>';
     } else {
       cartSection = '' +
@@ -440,9 +480,12 @@
           '<div class="done-hero">' +
             doneHeroSvg() +
             '<h1 class="done-title">You are in the pool</h1>' +
-            '<p class="done-sub">We text ' + maskedPhone + ' when it fills.</p>' +
+            '<p class="done-sub">We text ' + maskedPhone + ' with pricing updates as the pool fills.</p>' +
           '</div>' +
           cartSection +
+          (cartItems.length > 0
+            ? '<button class="add-more-btn" data-action="edit-picks">' + plusIcon() + 'Show interest in more laptops</button>'
+            : '') +
           '<p class="done-footnote">More freshers joining means a lower price.</p>' +
         '</div>' +
         '<div class="done-footer">' +
@@ -517,9 +560,9 @@
         go('budget', 240);
         break;
       case 'pick-budget':
-        setState({ budget: +btn.dataset.budget, bumped: false, cart: {} });
+        setState(function (st) { return { budget: +btn.dataset.budget, bumped: false, cart: st.fromDone ? st.cart : {} }; });
         clearTimeout(pendingTimer);
-        pendingTimer = setTimeout(enterPicks, 240);
+        pendingTimer = setTimeout(function () { enterPicks(); }, 240);
         break;
       case 'toggle-cart': {
         var id = btn.dataset.id;
@@ -561,7 +604,11 @@
         break;
       }
       case 'edit-picks':
-        enterPicks();
+        enterPicks({ fromDone: true });
+        break;
+      case 'back-to-pool':
+        clearTimeout(pendingTimer);
+        setState({ screen: 'done', fromDone: false });
         break;
       case 'restart':
         restart();
