@@ -2,3 +2,6 @@
 .claude/
 .DS_Store
 Thumbs.db
+
+# scratch text dump of the source guide PDF
+guide_extract.txt

@@ -18,6 +18,8 @@
  *     expected for your own script: Advanced > Go to (project name).
  *  5. Copy the Web app URL. It ends in /exec.
  *  6. Paste it into SHEET_ENDPOINT at the top of app.js.
+ *  7. Optional: pick setupSheets from the function dropdown and press Run, to
+ *     create every tab now rather than when the first person uses the form.
  *
  * To check it is live, open the /exec URL in a browser. It should answer with a
  * short "endpoint is live" line.
@@ -30,7 +32,20 @@ var SHEET_NAME = 'Responses';
 var TAPS_SHEET_NAME = 'Taps';
 var EVENTS_SHEET_NAME = 'Events';
 var FUNNEL_SHEET_NAME = 'Funnel';
+var README_SHEET_NAME = 'Read me first';
 var SHARED_SECRET = '';
+
+// Run this once from the editor to create every tab straight away, instead of
+// waiting for the first person to use the form. Select setupSheets from the
+// function dropdown at the top, then press Run.
+function setupSheets() {
+  ensureReadmeSheet();
+  getSheet();
+  getTapSheet();
+  getEventSheet();
+  ensureFunnelSheet();
+  SpreadsheetApp.getActiveSpreadsheet().toast('All tabs are ready.', 'Picapool', 5);
+}
 
 // Order here is the column order in the sheet. Adding a key means adding a
 // column, so add new ones at the end and existing rows stay lined up.
@@ -90,6 +105,7 @@ function doPost(e) {
     var body = {};
     if (e && e.postData && e.postData.contents) body = JSON.parse(e.postData.contents);
     if (SHARED_SECRET && body.secret !== SHARED_SECRET) return json({ ok: false, error: 'bad secret' });
+    ensureReadmeSheet();
     if (body.type === 'tap') return recordTap(body);
     if (body.type === 'events') return recordEvents(body);
 
@@ -118,9 +134,10 @@ function doPost(e) {
 
 function doGet() {
   return ContentService.createTextOutput(
-    'Picapool endpoint is live. Responses go to "' + SHEET_NAME + '", link taps to "' +
-    TAPS_SHEET_NAME + '", step by step activity to "' + EVENTS_SHEET_NAME + '", and "' +
-    FUNNEL_SHEET_NAME + '" works out where people drop off.'
+    'Picapool endpoint is live. Tabs: "' + README_SHEET_NAME + '" explains the sheet, "' +
+    SHEET_NAME + '" holds the responses, "' + TAPS_SHEET_NAME + '" the link taps, "' +
+    EVENTS_SHEET_NAME + '" the step by step activity, and "' + FUNNEL_SHEET_NAME +
+    '" works out where people drop off.'
   );
 }
 
@@ -219,6 +236,88 @@ function buildFunnelSheet(sheet) {
   sheet.getRange('A12:A13').setFontColor('#888888');
   sheet.setColumnWidth(1, 170);
   sheet.setFrozenRows(1);
+}
+
+// Written for whoever opens this spreadsheet without having built any of it.
+// Plain words only, no jargon that is not explained on the spot.
+var README_ROWS = [
+  ['title', 'Picapool laptop group buy: how this sheet works'],
+  ['body', 'Everything here fills itself in from the form at laptop.picapool.tech. Nothing needs to be typed by hand. Leave the sheet open, refresh the page now and then, and new rows appear as students use the form.'],
+  ['blank', ''],
+
+  ['head', 'The tabs along the bottom'],
+  ['sub', 'Responses'],
+  ['body', 'One row per student who finished the form: their name, phone number, budget, and the laptops they said they want. This is the list you actually work from when you call people or go to a seller.'],
+  ['sub', 'Taps'],
+  ['body', 'One row every time somebody opens the link, even if they close it a second later without filling anything in. Put this next to Responses and you can see how many people looked versus how many signed up.'],
+  ['sub', 'Events'],
+  ['body', 'A trail of every screen a person visited and every button they pressed. It is long and it is not meant to be read directly. The Funnel tab turns it into something useful.'],
+  ['sub', 'Funnel'],
+  ['body', 'The summary, and the one worth reading. It shows how far people get before giving up, which laptops the most people want, and which shared link is bringing people in. It updates on its own.'],
+  ['blank', ''],
+
+  ['head', 'Columns that are not obvious'],
+  ['body', 'Lead ID and Session are random codes for one person’s phone. You can ignore both. They exist so that if somebody comes back and changes their mind, their existing row gets updated instead of a second row appearing for the same person.'],
+  ['body', 'Source is which link the person came through. Share laptop.picapool.tech/whatsapp and everyone from that link is tagged whatsapp. Somebody typing the plain address is tagged direct.'],
+  ['body', 'Submitted at is when they first filled the form. Updated at is when they last changed something.'],
+  ['body', 'Own model or brand is a laptop the student typed in themselves because it was not on our list. These are worth reading. They are real requests.'],
+  ['body', 'Pool price total and List price total are rough reference numbers for what somebody’s shortlist costs. Students never see a single price anywhere in the form. These are here only so whoever negotiates knows the ballpark.'],
+  ['blank', ''],
+
+  ['head', 'Making a new link for a poster or a group'],
+  ['body', 'Pick any single word and put it after the address. Share laptop.picapool.tech/hostel and every response from that link is tagged hostel, so you can tell which posters and which groups actually worked. Nothing needs setting up first. The word just has to be one word with no spaces.'],
+  ['blank', ''],
+
+  ['head', 'Safe to do'],
+  ['body', 'Sort, filter, hide columns, colour rows, and add your own notes column at the far right of a tab. None of that breaks anything. Sorting Responses is fine even after people start editing their answers.'],
+  ['head', 'Please do not'],
+  ['body', 'Rename a tab, delete the top row of headings, or move, delete or rename any of the existing columns. The form writes into these tabs by position, so changing the layout makes new responses land in the wrong columns.'],
+  ['blank', ''],
+
+  ['head', 'Keep this sheet private'],
+  ['body', 'These are real phone numbers of students in our batch. Do not share the link publicly, do not post screenshots with numbers showing, and share it person by person with only the few people who need it.'],
+  ['blank', ''],
+
+  ['head', 'If something looks wrong'],
+  ['body', 'Funnel is showing zeroes: nobody has used the form yet. Once people start, it fills in on its own.'],
+  ['body', 'A row changed instead of a new one appearing: that is the same person editing their answer. Working as intended.'],
+  ['body', 'Nothing is arriving at all: the form’s connection to this sheet probably needs redeploying. Ask whoever set it up.'],
+  ['body', 'A tab went missing: open Extensions, then Apps Script, choose setupSheets from the dropdown at the top and press Run. It rebuilds anything absent without touching existing data.']
+];
+
+function ensureReadmeSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss.getSheetByName(README_SHEET_NAME)) return;
+  var sheet = ss.insertSheet(README_SHEET_NAME);
+  buildReadmeSheet(sheet);
+  // Whoever opens the spreadsheet should land on this first.
+  ss.setActiveSheet(sheet);
+  ss.moveActiveSheet(1);
+}
+
+function rebuildReadme() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var old = ss.getSheetByName(README_SHEET_NAME);
+  if (old) ss.deleteSheet(old);
+  ensureReadmeSheet();
+}
+
+function buildReadmeSheet(sheet) {
+  sheet.getRange(1, 1, README_ROWS.length, 1)
+    .setValues(README_ROWS.map(function (r) { return [r[1]]; }));
+
+  for (var i = 0; i < README_ROWS.length; i++) {
+    var cell = sheet.getRange(i + 1, 1);
+    var kind = README_ROWS[i][0];
+    if (kind === 'title') cell.setFontSize(16).setFontWeight('bold').setFontColor('#1C1C1E');
+    else if (kind === 'head') cell.setFontSize(12).setFontWeight('bold').setFontColor('#F03506');
+    else if (kind === 'sub') cell.setFontSize(11).setFontWeight('bold').setFontColor('#1C1C1E');
+    else cell.setFontSize(10).setFontColor('#444444');
+  }
+
+  sheet.setColumnWidth(1, 780);
+  sheet.getRange(1, 1, README_ROWS.length, 1).setWrap(true).setVerticalAlignment('top');
+  sheet.setHiddenGridlines(true);
 }
 
 function recordTap(body) {
