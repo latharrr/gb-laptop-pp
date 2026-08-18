@@ -971,7 +971,14 @@
     if (field === 'name') {
       setState({ name: e.target.value });
     } else if (field === 'phone') {
-      var digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+      var raw = e.target.value.replace(/\D/g, '');
+      // Autofill often hands back the full number with the +91 country code
+      // (or a leading trunk 0) even though this field only holds the national
+      // 10 digits. Strip that prefix first, or the real number's last digits
+      // get truncated off the end instead.
+      if (raw.length === 12 && raw.slice(0, 2) === '91') raw = raw.slice(2);
+      else if (raw.length === 11 && raw.charAt(0) === '0') raw = raw.slice(1);
+      var digits = raw.slice(0, 10);
       forceCaretEnd = true;
       // A complete number with no name would otherwise sit there waiting forever.
       if (digits.length === 10 && !state.name.trim()) setState({ phone: digits, tried: true });
