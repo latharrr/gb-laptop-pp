@@ -605,11 +605,15 @@
     } else if (ready) {
       var cards = list.map(function (l) {
         var on = !!state.cart[l.id];
+        var priceMarkup = '<div class="laptop-price">' + fmt(l.price) +
+          (l.mrp && l.mrp > l.price ? '<span class="laptop-mrp">' + fmt(l.mrp) + '</span>' : '') +
+          '</div>';
         return '' +
           '<div class="laptop-card' + (on ? ' is-added' : '') + '">' +
             laptopThumbLarge(l) +
             '<div class="laptop-body">' +
               '<div><div class="laptop-brand">' + l.brand + '</div><div class="laptop-model">' + l.model + '</div></div>' +
+              priceMarkup +
               '<div class="laptop-specs"><span class="spec-pill">' + l.c[0] + '</span><span class="spec-pill">' + l.c[1] + '</span><span class="spec-pill">' + l.c[2] + '</span></div>' +
               '<div class="laptop-why">' + l.why + '</div>' +
               '<div class="laptop-foot">' +
