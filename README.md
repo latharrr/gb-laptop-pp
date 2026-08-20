@@ -96,12 +96,9 @@ unique**.
 ```
 
 - `c` must have exactly three entries. The card renders `c[0]`, `c[1]`, `c[2]`.
-- `price` is shown on every card, formatted by `fmt()`. It also decides which
-  budget band the laptop appears in, and it goes to the sheet so whoever
-  negotiates knows the ballpark.
+- `price` is never shown to students. It decides which budget band the laptop
+  appears in, and it goes to the sheet so whoever negotiates knows the ballpark.
 - `price` must end in `999`. `pretty()` enforces the same shape on pool prices.
-- `mrp` is optional. When set and higher than `price`, the card shows it next
-  to `price`, struck through.
 - `band` is derived from `price` by `bandFor()`, not stored. A card can never
   sit in a bracket its own price contradicts.
 - `src` records provenance: `guide` for the FOT DU Laptop Group Buy Guide 2026
@@ -114,16 +111,13 @@ unique**.
 Changing `BAND_MAX` reshuffles every laptop automatically. Check afterwards that
 no purpose ends up with an empty band, or students hit the empty state.
 
-### Prices on screen
+### No prices on screen
 
-Each card shows `price` (and `mrp` struck through, when the catalog sets one)
-through `fmt()`, which renders `₹` plus `toLocaleString('en-IN')`: Indian digit
-grouping, so `57999` reads `₹57,999` and `102999` reads `₹1,02,999`. It is
-still only an indicative street price, not a quote: the `price-note` under the
-list heading tells students the pool negotiates it down further once the group
-size is known. Card copy (the `why` line) must still not name a figure or use
-`₹`, since that text is fixed at write time and does not track price changes
-the way the `price` field does.
+Deliberate. Prices in India move weekly and the whole premise is that the group
+negotiates the price afterwards, so quoting one up front is a claim the project
+cannot stand behind. Card copy must not name a figure either. Budget band labels
+stay, because that is the student's own budget rather than a claim about a
+laptop.
 
 ## Google Sheet integration
 

@@ -105,15 +105,12 @@ check('every data-action in markup has a handler', (() => {
   if (orphans.length) console.log('    orphans: ' + orphans.join(', '));
   return orphans.length === 0;
 })());
-check('the picks card renders a formatted price', /class="laptop-price">' \+ fmt\(l\.price\)/.test(src));
-check('the picks card shows mrp struck through only when the catalog sets one above price',
-  /class="laptop-mrp">' \+ fmt\(l\.mrp\)/.test(src) && /l\.mrp && l\.mrp > l\.price/.test(src));
-check('fmt() is used only for the sheet payload and the picks card price/mrp', (() => {
-  const uses = [...src.matchAll(/fmt\(/g)].length;
-  return uses === 4;   // definition, leadPayload's picks string, laptop-price, laptop-mrp
+check('no price is rendered on any screen', (() => {
+  // fmt() may only be used when building the sheet payload, never in markup.
+  const markupUses = [...src.matchAll(/fmt\(/g)].length;
+  const payloadUses = [...src.matchAll(/' \+ fmt\(l\.price\)/g)].length;
+  return markupUses === 2 && payloadUses === 1;   // definition site plus the payload
 })(), [...src.matchAll(/.{40}fmt\(.{30}/g)].map(m => m[0]));
-check('price renders in Indian digit grouping (xx,xxx under 1L, x,xx,xxx at 1L+)',
-  (57999).toLocaleString('en-IN') === '57,999' && (102999).toLocaleString('en-IN') === '1,02,999');
 check('no event logs a name or phone value',
   !/track\([^)]*state\.(name|phone)/.test(src));
 check('contact fields still have stable ids for focus restore',
