@@ -308,7 +308,7 @@ var README_ROWS = [
   ['body', 'They mark as many as they want with I am interested. If nothing on the list suits them, there is an optional box where they can type any model or brand themselves, and that alone is enough to carry on.'],
   ['body', 'Then they pick roughly which week they plan to buy, say how ready they are, and leave a name and mobile number. The number saves itself two seconds after they finish typing, so there is no submit button to miss.'],
   ['body', 'Afterwards they can go back, change their picks, and return. That updates their existing row rather than making a second one.'],
-  ['body', 'The form never shows a price anywhere. That is deliberate: prices in India move every week, and the whole point is that we negotiate the price afterwards, so promising one up front is not something we can stand behind.'],
+  ['body', 'Each laptop shown carries our reference price, in rupees with normal Indian comma grouping (57,999 or 1,02,999), so a student knows roughly what they are signing up for. That price is a starting point, not a final number: prices in India move every week, and the whole point of pooling is that we negotiate it down afterwards once we know how many of us want the same model.'],
   ['blank', ''],
 
   ['head', '2. The tabs along the bottom'],
@@ -464,6 +464,11 @@ function getSheet() {
     sheet.setFrozenRows(1);
     // Phones arrive as +91XXXXXXXXXX. Text format stops Sheets mangling them.
     sheet.getRange(2, keyIndex('phone') + 1, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
+    // Indian digit grouping (57,999 / 1,02,999) instead of the default 57999,
+    // to match the price shown on screen and in the "Shortlisted laptops" text.
+    var RUPEE_FORMAT = '"₹"#,##,##0';
+    sheet.getRange(2, keyIndex('poolTotal') + 1, sheet.getMaxRows() - 1, 1).setNumberFormat(RUPEE_FORMAT);
+    sheet.getRange(2, keyIndex('listTotal') + 1, sheet.getMaxRows() - 1, 1).setNumberFormat(RUPEE_FORMAT);
   }
   return sheet;
 }

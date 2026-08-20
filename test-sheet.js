@@ -130,6 +130,10 @@ console.log('\nApps Script behaviour\n');
   const r3 = post(ctx, Object.assign({}, lead, { leadId: 'L2', name: 'Aarav' }));
   check('different leadId appends row 3', r3.row === 3, r3);
   check('phone column formatted as text', ss.getSheetByName('Responses').__fmt['numfmt:1:4'] === '@');
+  check('pool price total formatted with Indian digit grouping',
+    /#,##,##0/.test(ss.getSheetByName('Responses').__fmt['numfmt:1:12'] || ''));
+  check('list price total formatted with Indian digit grouping',
+    /#,##,##0/.test(ss.getSheetByName('Responses').__fmt['numfmt:1:13'] || ''));
 
   // --- taps ---
   const t1 = post(ctx, { type: 'tap', tappedAt: '2026-08-11T10:05:00.000Z', source: 'whatsapp', path: '/whatsapp', repeat: 'no', referrer: 'https://wa.me/' });
@@ -218,7 +222,8 @@ console.log('\nApps Script behaviour\n');
 
   check('read me walks through what a student does',
     has('Find my laptop') && has('I am interested') && has('saves itself'));
-  check('read me explains why no prices are shown', /never shows a price/.test(text));
+  check('read me explains prices are a starting point, not final', /starting point, not a final number/.test(text));
+  check('read me explains the Indian comma grouping shown on screen', /1,02,999/.test(text));
   check('read me documents all three runnable functions',
     ['setupSheets', 'rebuildFunnel', 'rebuildReadme'].every(f => rg.some(r => String(r[0]) === f)));
   check('read me says how to reach those functions',
